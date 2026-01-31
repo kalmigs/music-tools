@@ -212,63 +212,66 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
     return 'normal';
   }, []);
 
-  const startInterval = useCallback((intervalBpm: number, audioContext: AudioContext) => {
-    stopInterval();
-    
-    const tick = () => {
-      const beat = currentBeatRef.current;
-      const clickType = getClickType(beat);
-      createClickSound(audioContext, clickType);
+  const startInterval = useCallback(
+    (intervalBpm: number, audioContext: AudioContext) => {
+      stopInterval();
 
-      setCurrentBeat(beat);
-      onBeatChange?.(beat);
+      const tick = () => {
+        const beat = currentBeatRef.current;
+        const clickType = getClickType(beat);
+        createClickSound(audioContext, clickType);
 
-      // Increment for next beat (use ref to get latest beatsPerMeasure)
-      currentBeatRef.current = (beat + 1) % beatsPerMeasureRef.current;
+        setCurrentBeat(beat);
+        onBeatChange?.(beat);
 
-      // Speed trainer logic - check after completing a measure
-      if (speedTrainer?.enabled && currentBeatRef.current === 0) {
-        const st = speedTrainerRef.current;
-        st.currentRepeat++;
+        // Increment for next beat (use ref to get latest beatsPerMeasure)
+        currentBeatRef.current = (beat + 1) % beatsPerMeasureRef.current;
 
-        if (st.currentRepeat > speedTrainer.repeatsPerLoop) {
-          st.currentRepeat = 1;
-          st.currentLoop++;
+        // Speed trainer logic - check after completing a measure
+        if (speedTrainer?.enabled && currentBeatRef.current === 0) {
+          const st = speedTrainerRef.current;
+          st.currentRepeat++;
 
-          // Check for completion (loops > 0 means finite, 0 means infinite)
-          if (speedTrainer.loops > 0 && st.currentLoop > speedTrainer.loops) {
-            // Complete
-            stopInterval();
-            if (timerIntervalRef.current) {
-              clearInterval(timerIntervalRef.current);
-              timerIntervalRef.current = null;
+          if (st.currentRepeat > speedTrainer.repeatsPerLoop) {
+            st.currentRepeat = 1;
+            st.currentLoop++;
+
+            // Check for completion (loops > 0 means finite, 0 means infinite)
+            if (speedTrainer.loops > 0 && st.currentLoop > speedTrainer.loops) {
+              // Complete
+              stopInterval();
+              if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
+              }
+              setIsPlaying(false);
+              setCurrentBeat(-1);
+              currentBeatRef.current = 0;
+              setElapsedSeconds(0);
+              setSpeedTrainerState(null);
+              onComplete?.();
+              return;
             }
-            setIsPlaying(false);
-            setCurrentBeat(-1);
-            currentBeatRef.current = 0;
-            setElapsedSeconds(0);
-            setSpeedTrainerState(null);
-            onComplete?.();
-            return;
+
+            // Increase BPM for next loop
+            st.currentBpm = clampBpm(st.currentBpm + speedTrainer.bpmIncrement);
+
+            // Restart interval with new BPM
+            startInterval(st.currentBpm, audioContext);
           }
 
-          // Increase BPM for next loop
-          st.currentBpm = clampBpm(st.currentBpm + speedTrainer.bpmIncrement);
-          
-          // Restart interval with new BPM
-          startInterval(st.currentBpm, audioContext);
+          setSpeedTrainerState({ ...st });
         }
+      };
 
-        setSpeedTrainerState({ ...st });
-      }
-    };
+      const interval = 60000 / intervalBpm;
+      intervalRef.current = window.setInterval(tick, interval);
 
-    const interval = 60000 / intervalBpm;
-    intervalRef.current = window.setInterval(tick, interval);
-    
-    // Execute first tick immediately
-    tick();
-  }, [getClickType, onBeatChange, onComplete, speedTrainer, stopInterval]);
+      // Execute first tick immediately
+      tick();
+    },
+    [getClickType, onBeatChange, onComplete, speedTrainer, stopInterval],
+  );
 
   const stop = useCallback(() => {
     stopInterval();
@@ -285,38 +288,41 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
     setSpeedTrainerState(null);
   }, [stopInterval]);
 
-  const startMetronome = useCallback((audioContext: AudioContext) => {
-    currentBeatRef.current = 0;
-    const startBpm = bpmRef.current;
+  const startMetronome = useCallback(
+    (audioContext: AudioContext) => {
+      currentBeatRef.current = 0;
+      const startBpm = bpmRef.current;
 
-    if (speedTrainer?.enabled) {
-      speedTrainerRef.current = {
-        currentBpm: startBpm,
-        currentLoop: 1,
-        currentRepeat: 1,
-      };
-      setSpeedTrainerState({ ...speedTrainerRef.current });
-    }
+      if (speedTrainer?.enabled) {
+        speedTrainerRef.current = {
+          currentBpm: startBpm,
+          currentLoop: 1,
+          currentRepeat: 1,
+        };
+        setSpeedTrainerState({ ...speedTrainerRef.current });
+      }
 
-    setIsCountingIn(false);
-    setCountInRemaining(0);
-    startInterval(startBpm, audioContext);
+      setIsCountingIn(false);
+      setCountInRemaining(0);
+      startInterval(startBpm, audioContext);
 
-    // Timer logic
-    if (timer?.enabled && timer.durationSeconds > 0) {
-      timerIntervalRef.current = window.setInterval(() => {
-        setElapsedSeconds(prev => {
-          const next = prev + 1;
-          if (next >= timer.durationSeconds) {
-            stop();
-            onComplete?.();
-            return 0;
-          }
-          return next;
-        });
-      }, 1000);
-    }
-  }, [onComplete, speedTrainer, startInterval, stop, timer]);
+      // Timer logic
+      if (timer?.enabled && timer.durationSeconds > 0) {
+        timerIntervalRef.current = window.setInterval(() => {
+          setElapsedSeconds(prev => {
+            const next = prev + 1;
+            if (next >= timer.durationSeconds) {
+              stop();
+              onComplete?.();
+              return 0;
+            }
+            return next;
+          });
+        }, 1000);
+      }
+    },
+    [onComplete, speedTrainer, startInterval, stop, timer],
+  );
 
   const play = useCallback(() => {
     const audioContext = getAudioContext();
@@ -376,17 +382,20 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
     }
   }, [isPlaying, pause, play]);
 
-  const setBpm = useCallback((newBpm: number) => {
-    const clamped = clampBpm(newBpm);
-    setBpmState(clamped);
-    bpmRef.current = clamped;
-    onBpmChange?.(clamped);
+  const setBpm = useCallback(
+    (newBpm: number) => {
+      const clamped = clampBpm(newBpm);
+      setBpmState(clamped);
+      bpmRef.current = clamped;
+      onBpmChange?.(clamped);
 
-    // If playing (not counting in) and not in speed trainer mode, restart interval with new BPM
-    if (isPlaying && !isCountingIn && !speedTrainer?.enabled && audioContextRef.current) {
-      startInterval(clamped, audioContextRef.current);
-    }
-  }, [isCountingIn, isPlaying, onBpmChange, speedTrainer?.enabled, startInterval]);
+      // If playing (not counting in) and not in speed trainer mode, restart interval with new BPM
+      if (isPlaying && !isCountingIn && !speedTrainer?.enabled && audioContextRef.current) {
+        startInterval(clamped, audioContextRef.current);
+      }
+    },
+    [isCountingIn, isPlaying, onBpmChange, speedTrainer?.enabled, startInterval],
+  );
 
   // Cleanup on unmount
   useEffect(() => {

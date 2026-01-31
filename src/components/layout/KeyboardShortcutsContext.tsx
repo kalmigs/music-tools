@@ -1,9 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import {
-  KeyboardShortcutsContext,
-  type KeyboardShortcut,
-} from '@/lib/keyboard-shortcuts-context';
+import { KeyboardShortcutsContext, type KeyboardShortcut } from '@/lib/keyboard-shortcuts-context';
 
 export function KeyboardShortcutsProvider({ children }: { children: React.ReactNode }) {
   const [globalShortcuts, setGlobalShortcuts] = useState<KeyboardShortcut[]>([]);
@@ -37,8 +34,6 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
   );
 
   return (
-    <KeyboardShortcutsContext.Provider value={value}>
-      {children}
-    </KeyboardShortcutsContext.Provider>
+    <KeyboardShortcutsContext.Provider value={value}>{children}</KeyboardShortcutsContext.Provider>
   );
 }

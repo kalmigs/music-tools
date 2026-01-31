@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Check, ChevronDownIcon, ChevronRight, Minus, Pause, Play, Plus, Settings } from 'lucide-react';
+import {
+  Check,
+  ChevronDownIcon,
+  ChevronRight,
+  Minus,
+  Pause,
+  Play,
+  Plus,
+  Settings,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -14,12 +23,7 @@ import {
   ComboboxTrigger,
   ComboboxValue,
 } from '@/components/ui/combobox';
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
+import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import {
   Dialog,
   DialogClose,
@@ -297,7 +301,9 @@ function TimerDialog({
       <DialogTrigger
         className={cn(
           'rounded-md px-4 py-2 text-sm font-medium',
-          value.enabled ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80',
+          value.enabled
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-secondary hover:bg-secondary/80',
         )}
       >
         Timer
@@ -307,7 +313,11 @@ function TimerDialog({
           <DialogTitle>Duration</DialogTitle>
           <DialogDescription>Determine your exercise time</DialogDescription>
         </DialogHeader>
-        <TimerDialogContent enabledExplicitlySet={enabledExplicitlySet} onSave={onSave} value={value} />
+        <TimerDialogContent
+          enabledExplicitlySet={enabledExplicitlySet}
+          onSave={onSave}
+          value={value}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -393,7 +403,9 @@ function SpeedTrainerDialog({
       <DialogTrigger
         className={cn(
           'rounded-md px-4 py-2 text-sm font-medium',
-          value.enabled ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80',
+          value.enabled
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-secondary hover:bg-secondary/80',
         )}
       >
         Speed trainer
@@ -403,7 +415,11 @@ function SpeedTrainerDialog({
           <DialogTitle>Speed Trainer</DialogTitle>
           <DialogDescription>Gradually increase tempo over time</DialogDescription>
         </DialogHeader>
-        <SpeedTrainerDialogContent enabledExplicitlySet={enabledExplicitlySet} onSave={onSave} value={value} />
+        <SpeedTrainerDialogContent
+          enabledExplicitlySet={enabledExplicitlySet}
+          onSave={onSave}
+          value={value}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -571,11 +587,7 @@ function MetronomePage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input, textarea, or contenteditable
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
 
@@ -670,11 +682,12 @@ function MetronomePage() {
       (!isPlaying && (timerConfig.enabled || speedTrainerConfig.enabled)) ? (
         <div className="space-y-2">
           <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-            {speedTrainerConfig.enabled && (
-              isPlaying && speedTrainerState ? (
+            {speedTrainerConfig.enabled &&
+              (isPlaying && speedTrainerState ? (
                 <>
                   <span>
-                    Loop {speedTrainerState.currentLoop}{speedTrainerConfig.loops > 0 ? `/${speedTrainerConfig.loops}` : ''}
+                    Loop {speedTrainerState.currentLoop}
+                    {speedTrainerConfig.loops > 0 ? `/${speedTrainerConfig.loops}` : ''}
                   </span>
                   <span>
                     {speedTrainerState.currentRepeat}/{speedTrainerConfig.repeatsPerLoop}
@@ -683,10 +696,12 @@ function MetronomePage() {
                 </>
               ) : (
                 <span>
-                  Speed: {speedTrainerConfig.loops > 0 ? `${speedTrainerConfig.loops} loops` : '∞ loops'} × {speedTrainerConfig.repeatsPerLoop} repeats (+{speedTrainerConfig.bpmIncrement} BPM)
+                  Speed:{' '}
+                  {speedTrainerConfig.loops > 0 ? `${speedTrainerConfig.loops} loops` : '∞ loops'} ×{' '}
+                  {speedTrainerConfig.repeatsPerLoop} repeats (+{speedTrainerConfig.bpmIncrement}{' '}
+                  BPM)
                 </span>
-              )
-            )}
+              ))}
             {timerConfig.enabled && (
               <span>
                 {isPlaying
@@ -716,8 +731,16 @@ function MetronomePage() {
       {/* Feature toggles */}
       <div className="flex items-center justify-center gap-2">
         <SettingsDialog countIn={countIn} onCountInChange={handleCountInChange} />
-        <SpeedTrainerDialog enabledExplicitlySet={speedTrainerEnabledExplicitlySet} onSave={handleSpeedTrainerChange} value={speedTrainerConfig} />
-        <TimerDialog enabledExplicitlySet={timerEnabledExplicitlySet} onSave={handleTimerChange} value={timerConfig} />
+        <SpeedTrainerDialog
+          enabledExplicitlySet={speedTrainerEnabledExplicitlySet}
+          onSave={handleSpeedTrainerChange}
+          value={speedTrainerConfig}
+        />
+        <TimerDialog
+          enabledExplicitlySet={timerEnabledExplicitlySet}
+          onSave={handleTimerChange}
+          value={timerConfig}
+        />
       </div>
 
       {/* Bottom controls */}

@@ -51,7 +51,12 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   return (
     <nav className="flex flex-col gap-6 p-4">
       {navItems.map(group => (
-        <NavGroup key={group.title} title={group.title} items={group.items} onNavClick={onNavClick} />
+        <NavGroup
+          key={group.title}
+          title={group.title}
+          items={group.items}
+          onNavClick={onNavClick}
+        />
       ))}
     </nav>
   );

@@ -28,10 +28,7 @@ export function useRegisterShortcuts(shortcuts: KeyboardShortcut[]) {
   const serialized = JSON.stringify(shortcuts);
 
   // Memoize shortcuts based on serialized value, not reference
-  const stableShortcuts = useMemo<KeyboardShortcut[]>(
-    () => JSON.parse(serialized),
-    [serialized],
-  );
+  const stableShortcuts = useMemo<KeyboardShortcut[]>(() => JSON.parse(serialized), [serialized]);
 
   useEffect(() => {
     if (stableShortcuts.length === 0) return;
