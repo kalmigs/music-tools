@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { RefObject } from "react";
+import { type RefObject } from "react";
 
 const Combobox = ComboboxPrimitive.Root;
 
@@ -33,7 +33,7 @@ function ComboboxTrigger(props: ComboboxPrimitive.Trigger.Props) {
   );
 }
 
-function ComboboxIcon(props: ComboboxPrimitive.Icon.Props) {
+function ComboboxIcon(props: Omit<ComboboxPrimitive.Icon.Props, 'ref'>) {
   return <ComboboxPrimitive.Icon data-slot="combobox-icon" {...props} />;
 }
 
