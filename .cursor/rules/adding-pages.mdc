@@ -8,18 +8,37 @@ alwaysApply: false
 
 ## Planning Questions
 
-Before implementing, consider:
+Before implementing, answer these:
 
 - How do you suggest we implement it?
 - Do we need to install any packages?
-- Show a rough layout for desktop and mobile
 - What functions and options should it have?
 - What is the ideal route path?
+
+## Required: Show Text Layout
+
+**Always show a rough text layout for desktop and mobile before implementing.** Use ASCII art to visualize:
+
+```
+┌─────────────────────────────┐
+│  Header / TopNav            │
+├─────────────────────────────┤
+│                             │
+│  Main content area          │
+│                             │
+├─────────────────────────────┤
+│  Controls / Footer          │
+└─────────────────────────────┘
+```
+
+Include layouts for any dialogs/modals as well.
 
 ## Implementation Guidelines
 
 - Follow `file-organization.mdc` throughout implementation
-- If a function or hook is reusable, add it to `src/lib/`
+- Reusable hooks go in `src/hooks/` (use-*.ts)
+- Reusable utility functions go in `src/lib/`
+- Add query parameters for page settings (see `query-params.mdc`)
 - Add to: desktop nav, mobile sidebar, and homepage
 
 ---
@@ -67,3 +86,4 @@ Add the feature to the Features section in `README.md`:
 - [ ] Navigation item added to `src/lib/nav.ts`
 - [ ] Home page updated (if applicable)
 - [ ] README.md features list updated
+- [ ] Query parameters for settings (if applicable)

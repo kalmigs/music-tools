@@ -17,7 +17,8 @@ alwaysApply: true
 - `src/routes/` - TanStack Router file-based routes
 - `src/components/ui/` - Base UI components (basecn)
 - `src/components/layout/` - Layout components (TopNav, Sidebar)
-- `src/lib/` - Utilities and helpers
+- `src/hooks/` - Custom React hooks (use-*.ts)
+- `src/lib/` - Utilities and helpers (non-hook functions)
 
 ## Code Style
 

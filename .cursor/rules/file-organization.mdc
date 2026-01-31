@@ -12,7 +12,7 @@ Organize files following this structure:
 
 ## Order
 
-1. **Imports** (grouped: react → external libs → local components → hooks)
+1. **Imports** (grouped: react → external libs → @/components → @/hooks → @/lib)
 2. **Types**
    - Type aliases first
    - Internal/config interfaces
@@ -53,6 +53,8 @@ Organize files following this structure:
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
+import { useMetronome } from '@/hooks/use-metronome';
+import { formatTime } from '@/lib/tempo-utils';
 
 // Types
 type Status = 'idle' | 'loading' | 'error';

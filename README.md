@@ -4,7 +4,7 @@ A collection of browser-based music utilities.
 
 ## Features
 
-*Coming soon*
+- **Metronome** - Practice with adjustable tempo, time signatures, tap tempo, speed trainer, and timer
 
 ## Tech Stack
 
@@ -13,7 +13,7 @@ A collection of browser-based music utilities.
 - Vite (rolldown-vite)
 - TanStack Router
 - Tailwind CSS 4
-- Radix UI
+- Base UI
 
 ## Getting Started
 

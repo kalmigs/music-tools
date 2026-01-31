@@ -1,35 +1,40 @@
-import { Home, type LucideIcon } from 'lucide-react';
+import { Home, Timer, type LucideIcon } from 'lucide-react';
+
+// Types
+export interface NavGroup {
+  items: NavItem[];
+  title: string;
+}
 
 export interface NavItem {
-  title: string;
+  description?: string;
   href: string;
   icon?: LucideIcon;
-  description?: string;
-}
-
-export interface NavGroup {
   title: string;
-  items: NavItem[];
 }
 
+// Constants
 export const navItems: NavGroup[] = [
   {
     title: 'General',
     items: [
       {
-        title: 'Home',
+        description: 'Welcome to Music Tools',
         href: '/',
         icon: Home,
-        description: 'Welcome to Music Tools',
+        title: 'Home',
       },
     ],
   },
-  // Add more groups as you build features:
-  // {
-  //   title: 'Generate',
-  //   items: [
-  //     { title: 'Scales', href: '/generate/scales', icon: Music },
-  //     { title: 'Chords', href: '/generate/chords', icon: Piano },
-  //   ],
-  // },
+  {
+    title: 'Tools',
+    items: [
+      {
+        description: 'Practice with adjustable tempo',
+        href: '/metronome',
+        icon: Timer,
+        title: 'Metronome',
+      },
+    ],
+  },
 ];

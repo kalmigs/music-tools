@@ -1,9 +1,36 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { Link, createFileRoute } from '@tanstack/react-router';
+import { ArrowRight, Timer } from 'lucide-react';
 
-export const Route = createFileRoute('/')({
-  component: HomePage,
-});
+// Types
+interface ToolCardProps {
+  description: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+}
 
+// Subcomponents
+function ToolCard({ description, href, icon: Icon, title }: ToolCardProps) {
+  return (
+    <Link
+      to={href}
+      className="group rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm transition-colors hover:bg-accent"
+    >
+      <div className="flex items-start gap-4">
+        <div className="rounded-lg bg-primary/10 p-2">
+          <Icon className="size-6 text-primary" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold">{title}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+        <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+      </div>
+    </Link>
+  );
+}
+
+// Main component
 function HomePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -13,15 +40,18 @@ function HomePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Add tool cards here as you build features */}
-        <div className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
-          <h3 className="font-semibold">Getting Started</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Add your music tools by creating new routes in the{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">src/routes</code> directory.
-          </p>
-        </div>
+        <ToolCard
+          description="Practice with adjustable tempo, time signatures, and speed training"
+          href="/metronome"
+          icon={Timer}
+          title="Metronome"
+        />
       </div>
     </div>
   );
 }
+
+// Route export
+export const Route = createFileRoute('/')({
+  component: HomePage,
+});
