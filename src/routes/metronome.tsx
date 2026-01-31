@@ -721,14 +721,16 @@ function MetronomePage() {
       </div>
 
       {/* Bottom controls */}
-      <div className="flex items-center justify-center gap-3">
-        <TimeSignatureCombobox onChange={handleTimeSignatureChange} value={timeSignature} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+        <div className="flex items-center justify-center gap-3">
+          <TimeSignatureCombobox onChange={handleTimeSignatureChange} value={timeSignature} />
 
-        <Button className="px-6" onClick={tap} variant="outline">
-          Tap tempo
-        </Button>
+          <Button className="px-6" onClick={tap} variant="outline">
+            Tap tempo
+          </Button>
+        </div>
 
-        <Button className="gap-2 px-6" onClick={toggle} size="lg">
+        <Button className="w-full gap-2 px-6 sm:w-auto" onClick={toggle} size="lg">
           {isPlaying ? (
             <>
               <Pause className="size-5" />
