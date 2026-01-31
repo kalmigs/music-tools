@@ -1,0 +1,69 @@
+---
+description: Checklist when adding new pages/features
+globs: src/routes/**/*.tsx
+alwaysApply: false
+---
+
+# Adding New Pages/Features
+
+## Planning Questions
+
+Before implementing, consider:
+
+- How do you suggest we implement it?
+- Do we need to install any packages?
+- Show a rough layout for desktop and mobile
+- What functions and options should it have?
+- What is the ideal route path?
+
+## Implementation Guidelines
+
+- Follow `file-organization.mdc` throughout implementation
+- If a function or hook is reusable, add it to `src/lib/`
+- Add to: desktop nav, mobile sidebar, and homepage
+
+---
+
+## Update Checklist
+
+When adding a new page or feature, update these locations:
+
+## 1. Create the Route
+
+```
+src/routes/[page-name].tsx
+```
+
+## 2. Update Sidebar Navigation
+
+Add to `src/lib/nav.ts`:
+
+```tsx
+{
+  title: 'Page Name',
+  href: '/page-name',
+  icon: IconName,
+  description: 'Brief description',
+}
+```
+
+## 3. Update Home Page
+
+Add a card or link in `src/routes/index.tsx` if the feature should be discoverable from home.
+
+## 4. Update README
+
+Add the feature to the Features section in `README.md`:
+
+```markdown
+## Features
+
+- **Page Name** - Brief description
+```
+
+## Checklist
+
+- [ ] Route file created in `src/routes/`
+- [ ] Navigation item added to `src/lib/nav.ts`
+- [ ] Home page updated (if applicable)
+- [ ] README.md features list updated
