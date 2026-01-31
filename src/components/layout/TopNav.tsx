@@ -7,6 +7,7 @@ import {
   PopoverPositioner,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { useIsMobileBrowser } from '@/hooks/use-is-mobile-browser';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { type KeyboardShortcut } from '@/lib/keyboard-shortcuts-context';
 import { useSidebar } from './SidebarContext';
@@ -14,8 +15,10 @@ import { ThemeToggle } from './ThemeToggle';
 
 function KeyboardShortcutsButton() {
   const { globalShortcuts, pageShortcuts, hasShortcuts } = useKeyboardShortcuts();
+  const isMobileBrowser = useIsMobileBrowser();
 
-  if (!hasShortcuts) return null;
+  // Hide on mobile browsers (iOS/Android) since they don't have physical keyboards
+  if (!hasShortcuts || isMobileBrowser) return null;
 
   return (
     <Popover>
