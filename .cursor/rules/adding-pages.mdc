@@ -80,6 +80,38 @@ Add the feature to the Features section in `README.md`:
 - **Page Name** - Brief description
 ```
 
+## 5. Register Keyboard Shortcuts (if applicable)
+
+If the page has keyboard shortcuts, register them for the help popover in TopNav:
+
+```tsx
+import { useRegisterShortcuts } from '@/hooks/use-keyboard-shortcuts';
+
+function MyPage() {
+  // Register shortcuts - auto-unregisters on unmount
+  useRegisterShortcuts([
+    { key: 'Space', label: 'Start / Stop' },
+    { key: 'T', label: 'Tap tempo' },
+  ]);
+
+  // Also implement the actual keyboard handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+      if (e.code === 'Space') {
+        e.preventDefault();
+        // handle action
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+}
+```
+
 ## Checklist
 
 - [ ] Route file created in `src/routes/`
@@ -87,3 +119,4 @@ Add the feature to the Features section in `README.md`:
 - [ ] Home page updated (if applicable)
 - [ ] README.md features list updated
 - [ ] Query parameters for settings (if applicable)
+- [ ] Keyboard shortcuts registered (if applicable)
