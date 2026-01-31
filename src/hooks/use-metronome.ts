@@ -93,6 +93,21 @@ function createClickSound(audioContext: AudioContext, clickType: ClickType): voi
   oscillator.stop(now + 0.1);
 }
 
+// Warm up audio context with a silent sound to eliminate first-play latency
+function warmupAudioContext(audioContext: AudioContext): void {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  // Silent sound - volume at 0
+  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.001);
+}
+
 // Main hook
 export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeReturn {
   const {
@@ -125,6 +140,7 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
   const timerIntervalRef = useRef<number | null>(null);
   const currentBeatRef = useRef(0);
   const speedTrainerRef = useRef({ currentBpm: bpm, currentLoop: 1, currentRepeat: 1 });
+  const audioWarmedUpRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => {
@@ -149,6 +165,39 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
     }
     return audioContextRef.current;
   }, []);
+
+  // Preload AudioContext on first user interaction to eliminate first-play latency
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (audioWarmedUpRef.current) return;
+
+      const audioContext = getAudioContext();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          warmupAudioContext(audioContext);
+          audioWarmedUpRef.current = true;
+        });
+      } else {
+        warmupAudioContext(audioContext);
+        audioWarmedUpRef.current = true;
+      }
+
+      // Remove listeners after first interaction
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    };
+
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('keydown', handleFirstInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, [getAudioContext]);
 
   const stopInterval = useCallback(() => {
     if (intervalRef.current) {
@@ -273,6 +322,12 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
     const audioContext = getAudioContext();
     if (audioContext.state === 'suspended') {
       audioContext.resume();
+    }
+
+    // Ensure audio is warmed up before playing
+    if (!audioWarmedUpRef.current) {
+      warmupAudioContext(audioContext);
+      audioWarmedUpRef.current = true;
     }
 
     setIsPlaying(true);
