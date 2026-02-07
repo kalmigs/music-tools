@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { ArrowRight, Timer } from 'lucide-react';
+import { ArrowRight, Gauge, Timer } from 'lucide-react';
 
 // Types
 interface ToolCardProps {
@@ -45,6 +45,12 @@ function HomePage() {
           href="/metronome"
           icon={Timer}
           title="Metronome"
+        />
+        <ToolCard
+          description="Tune instruments using your microphone (browser-only pitch detection)"
+          href="/tuner"
+          icon={Gauge}
+          title="Tuner"
         />
       </div>
     </div>

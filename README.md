@@ -5,6 +5,7 @@ A collection of browser-based music utilities.
 ## Features
 
 - **Metronome** - Practice with adjustable tempo, time signatures, tap tempo, speed trainer, and timer
+- **Tuner** - Tune instruments with microphone input using browser-only pitch detection (inspired by [qiuxiang/tuner](https://github.com/qiuxiang/tuner))
 
 ## Tech Stack
 

@@ -1,4 +1,4 @@
-import { Home, Timer, type LucideIcon } from 'lucide-react';
+import { Gauge, Home, Timer, type LucideIcon } from 'lucide-react';
 
 // Types
 export interface NavGroup {
@@ -34,6 +34,12 @@ export const navItems: NavGroup[] = [
         href: '/metronome',
         icon: Timer,
         title: 'Metronome',
+      },
+      {
+        description: 'Tune instruments with microphone',
+        href: '/tuner',
+        icon: Gauge,
+        title: 'Tuner',
       },
     ],
   },

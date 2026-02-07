@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TunerRouteImport } from './routes/tuner'
 import { Route as MetronomeRouteImport } from './routes/metronome'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TunerRoute = TunerRouteImport.update({
+  id: '/tuner',
+  path: '/tuner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MetronomeRoute = MetronomeRouteImport.update({
   id: '/metronome',
   path: '/metronome',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/metronome': typeof MetronomeRoute
+  '/tuner': typeof TunerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/metronome': typeof MetronomeRoute
+  '/tuner': typeof TunerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/metronome': typeof MetronomeRoute
+  '/tuner': typeof TunerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/metronome'
+  fullPaths: '/' | '/metronome' | '/tuner'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/metronome'
-  id: '__root__' | '/' | '/metronome'
+  to: '/' | '/metronome' | '/tuner'
+  id: '__root__' | '/' | '/metronome' | '/tuner'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   MetronomeRoute: typeof MetronomeRoute
+  TunerRoute: typeof TunerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tuner': {
+      id: '/tuner'
+      path: '/tuner'
+      fullPath: '/tuner'
+      preLoaderRoute: typeof TunerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/metronome': {
       id: '/metronome'
       path: '/metronome'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   MetronomeRoute: MetronomeRoute,
+  TunerRoute: TunerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
