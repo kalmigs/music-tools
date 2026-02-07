@@ -52,10 +52,7 @@ export interface DetectedNote {
   frequency: number;
 }
 
-export function frequencyToNote(
-  frequency: number,
-  middleA: number,
-): DetectedNote {
+export function frequencyToNote(frequency: number, middleA: number): DetectedNote {
   const value = getNote(frequency, middleA);
   const name = NOTE_STRINGS[value % 12];
   const octave = Math.floor(value / 12) - 1;

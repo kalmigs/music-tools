@@ -1,22 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  frequencyToNote,
-  type DetectedNote,
-} from '@/lib/tuner-utils';
+import { frequencyToNote, type DetectedNote } from '@/lib/tuner-utils';
 
 const BUFFER_SIZE = 4096;
-const MIN_FREQ = 55;   // A1-ish
+const MIN_FREQ = 55; // A1-ish
 const MAX_FREQ = 1760; // A6-ish
 
 /**
  * Autocorrelation pitch detection on a buffer. Returns frequency in Hz or 0 if unclear.
  * Uses parabolic interpolation for sub-sample accuracy.
  */
-function detectPitchAutocorrelation(
-  buffer: Float32Array,
-  sampleRate: number,
-): number {
+function detectPitchAutocorrelation(buffer: Float32Array, sampleRate: number): number {
   const n = buffer.length;
   const maxLag = Math.floor(sampleRate / MIN_FREQ);
   const minLag = Math.ceil(sampleRate / MAX_FREQ);
@@ -51,15 +45,13 @@ function detectPitchAutocorrelation(
   if (bestLag - 1 < 0 || bestLag + 1 > maxLag || y1 <= 0) {
     return sampleRate / bestLag;
   }
-  const delta = 0.5 * (y0 - y2) / (y0 - 2 * y1 + y2);
+  const delta = (0.5 * (y0 - y2)) / (y0 - 2 * y1 + y2);
   const period = bestLag + (Number.isFinite(delta) ? delta : 0);
   const frequency = sampleRate / period;
 
   // Reject if outside range or correlation too weak (silence)
   if (frequency < MIN_FREQ || frequency > MAX_FREQ) return 0;
-  const rms = Math.sqrt(
-    buffer.reduce((s, x) => s + x * x, 0) / buffer.length,
-  );
+  const rms = Math.sqrt(buffer.reduce((s, x) => s + x * x, 0) / buffer.length);
   if (rms < 0.001) return 0;
 
   return frequency;
@@ -114,7 +106,8 @@ export function useTuner(options: UseTunerOptions): UseTunerResult {
   const start = useCallback(async () => {
     setError(null);
     const AudioContextClass =
-      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) {
       setError('AudioContext not supported in this browser');
       return;
@@ -134,11 +127,7 @@ export function useTuner(options: UseTunerOptions): UseTunerResult {
 
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
-      const scriptProcessor = audioContext.createScriptProcessor(
-        BUFFER_SIZE,
-        1,
-        1,
-      );
+      const scriptProcessor = audioContext.createScriptProcessor(BUFFER_SIZE, 1, 1);
       scriptProcessorRef.current = scriptProcessor;
 
       source.connect(analyser);
@@ -150,10 +139,7 @@ export function useTuner(options: UseTunerOptions): UseTunerResult {
         const buffer = new Float32Array(input.length);
         buffer.set(input);
 
-        const frequency = detectPitchAutocorrelation(
-          buffer,
-          audioContext.sampleRate,
-        );
+        const frequency = detectPitchAutocorrelation(buffer, audioContext.sampleRate);
 
         if (frequency > 0) {
           const detected = frequencyToNote(frequency, middleA);
@@ -168,8 +154,7 @@ export function useTuner(options: UseTunerOptions): UseTunerResult {
 
       setIsListening(true);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to access microphone';
+      const message = err instanceof Error ? err.message : 'Failed to access microphone';
       setError(message);
       cleanup();
     }
