@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { Keyboard, Menu, Music } from 'lucide-react';
+import { Keyboard, Menu, AudioLines } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -78,8 +78,10 @@ export function TopNav() {
       </Button>
 
       <Link to="/" className="flex items-center gap-2 font-semibold">
-        <Music className="h-5 w-5" />
-        <span>Music Tools</span>
+        <div className="bg-primary rounded-md px-1.5 py-1.5">
+          <AudioLines className="h-5 w-5 text-white " />
+        </div>
+        <span>AudioLines Tools</span>
       </Link>
 
       <nav className="ml-auto flex items-center gap-2">
