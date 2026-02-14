@@ -38,6 +38,35 @@ const MIN_NOTE_AHEAD_SECONDS = 0.04;
 const SCHEDULER_INTERVAL_MS = 25;
 
 // Helper functions
+function resolveSampleUrl(samplePath: string): string {
+  if (/^https?:\/\//i.test(samplePath)) return samplePath;
+
+  const origin = window.location.origin;
+  const basePath = import.meta.env.BASE_URL ?? '/';
+  const normalizedBasePath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+
+  if (samplePath.startsWith('/')) {
+    if (
+      normalizedBasePath !== '' &&
+      normalizedBasePath !== '/' &&
+      samplePath.startsWith(`${normalizedBasePath}/`)
+    ) {
+      return `${origin}${samplePath}`;
+    }
+
+    if (normalizedBasePath === '' || normalizedBasePath === '/') {
+      return `${origin}${samplePath}`;
+    }
+
+    return `${origin}${normalizedBasePath}${samplePath}`;
+  }
+
+  const separator =
+    normalizedBasePath === '' || normalizedBasePath === '/' ? '/' : `${normalizedBasePath}/`;
+
+  return `${origin}${separator}${samplePath}`;
+}
+
 export function getStepCount(section: DrumSection): number {
   return section.beatsPerBar * section.bars * section.stepsPerBeat;
 }
@@ -142,7 +171,7 @@ export function useDrumEngine({ project }: UseDrumEngineOptions): UseDrumEngineR
     try {
       await Promise.all(
         missingPaths.map(async samplePath => {
-          const response = await fetch(samplePath);
+          const response = await fetch(resolveSampleUrl(samplePath));
           if (!response.ok) {
             throw new Error(`Failed to load sample: ${samplePath}`);
           }
