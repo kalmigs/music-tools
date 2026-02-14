@@ -7,10 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 const PWA_THEME_COLOR = '#d40924';
 const PWA_BACKGROUND_COLOR = '#ffffff';
+const BASE_PATH = process.env.GITHUB_ACTIONS ? '/music-tools/' : '/';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? '/music-tools/' : '/',
+  base: BASE_PATH,
   plugins: [
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
@@ -21,23 +22,26 @@ export default defineConfig({
       manifest: {
         name: 'Music Tools',
         short_name: 'Music Tools',
+        description: 'An all-in-one music toolkit with essential tools today.',
         theme_color: PWA_THEME_COLOR,
         background_color: PWA_BACKGROUND_COLOR,
         display: 'standalone',
-        start_url: '/',
+        id: BASE_PATH,
+        start_url: BASE_PATH,
+        scope: BASE_PATH,
         icons: [
           {
-            src: '/pwa-icons/pwa-192x192.png',
+            src: 'pwa-icons/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/pwa-icons/pwa-512x512.png',
+            src: 'pwa-icons/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/pwa-icons/pwa-maskable-512x512.png',
+            src: 'pwa-icons/pwa-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
