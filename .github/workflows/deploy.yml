@@ -40,7 +40,12 @@ jobs:
         run: pnpm test -- --run
 
       - name: Build
+        env:
+          VITE_DRUM_SAMPLE_ORIGIN: https://cdn.jsdelivr.net/gh/kalmigs/music-tools@main/public
         run: pnpm build
+
+      - name: Remove bundled drum samples from artifact
+        run: rm -rf dist/drum-looper
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
