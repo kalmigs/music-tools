@@ -41,6 +41,11 @@ const SCHEDULER_INTERVAL_MS = 25;
 function resolveSampleUrl(samplePath: string): string {
   if (/^https?:\/\//i.test(samplePath)) return samplePath;
 
+  const sampleOrigin = import.meta.env.VITE_DRUM_SAMPLE_ORIGIN;
+  if (sampleOrigin && samplePath.startsWith('/drum-looper/')) {
+    return `${sampleOrigin.replace(/\/$/, '')}${samplePath}`;
+  }
+
   const origin = window.location.origin;
   const basePath = import.meta.env.BASE_URL ?? '/';
   const normalizedBasePath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
