@@ -822,11 +822,6 @@ function DrumLooperPage() {
               <Copy className="size-4" />
               Copy URL
             </Button>
-            {isBuffering && (
-              <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
-                preloading audio
-              </span>
-            )}
           </div>
         </div>
 
@@ -841,7 +836,7 @@ function DrumLooperPage() {
                 <div
                   className="grid items-center gap-1"
                   style={{
-                    gridTemplateColumns: `220px repeat(${activeStepCount}, minmax(22px, 22px))`,
+                    gridTemplateColumns: `minmax(130px, 170px) repeat(${activeStepCount}, minmax(22px, 22px))`,
                   }}
                 >
                   <div className="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -869,10 +864,11 @@ function DrumLooperPage() {
                     return (
                       <div className="contents" key={track.id}>
                         <div
-                          className="flex h-8 items-center px-2 text-sm"
+                          className="flex h-8 items-center px-2 pr-3 text-sm"
                           key={`${track.id}-name`}
+                          title={track.name}
                         >
-                          {track.name}
+                          <span className="block truncate">{track.name}</span>
                         </div>
                         {Array.from({ length: activeStepCount }, (_, stepIndex) => {
                           const isActive = activeSteps.includes(stepIndex);
