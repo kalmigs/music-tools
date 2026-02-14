@@ -56,4 +56,4 @@ pnpm format
 
 ## License
 
-LGPL-3.0
+AGPL-3.0
