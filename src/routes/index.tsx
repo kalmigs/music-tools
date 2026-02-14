@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { ArrowRight, Gauge, Timer } from 'lucide-react';
+import { ArrowRight, Drum, Gauge, Timer } from 'lucide-react';
 
 // Types
 interface ToolCardProps {
@@ -51,6 +51,12 @@ function HomePage() {
           href="/tuner"
           icon={Gauge}
           title="Tuner"
+        />
+        <ToolCard
+          description="Program drum patterns by section and share tracks in URL"
+          href="/drum-looper"
+          icon={Drum}
+          title="Drum Looper"
         />
       </div>
     </div>

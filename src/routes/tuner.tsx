@@ -241,7 +241,12 @@ function TunerPage() {
 
             {isListening && (
               <div className="flex flex-col items-center gap-4">
-                <Button className="gap-2 rounded-xl px-6" onClick={stop} size="lg" variant="outline">
+                <Button
+                  className="gap-2 rounded-xl px-6"
+                  onClick={stop}
+                  size="lg"
+                  variant="outline"
+                >
                   <MicOff className="size-5" />
                   Stop
                 </Button>
@@ -265,7 +270,9 @@ function TunerPage() {
                         <span className="text-sm">{activeDetectedNote.name.slice(1)}</span>
                       )}
                     </span>
-                    <span className="text-muted-foreground text-xs">{activeDetectedNote.octave}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {activeDetectedNote.octave}
+                    </span>
                   </button>
                 ) : null}
 

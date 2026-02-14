@@ -1,4 +1,4 @@
-import { Gauge, Home, Timer, type LucideIcon } from 'lucide-react';
+import { Drum, Gauge, Home, Timer, type LucideIcon } from 'lucide-react';
 
 // Types
 export interface NavGroup {
@@ -40,6 +40,12 @@ export const navItems: NavGroup[] = [
         href: '/tuner',
         icon: Gauge,
         title: 'Tuner',
+      },
+      {
+        description: 'Build section-based drum patterns',
+        href: '/drum-looper',
+        icon: Drum,
+        title: 'Drum Looper',
       },
     ],
   },

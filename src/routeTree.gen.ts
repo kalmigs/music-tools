@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TunerRouteImport } from './routes/tuner'
 import { Route as MetronomeRouteImport } from './routes/metronome'
+import { Route as DrumLooperRouteImport } from './routes/drum-looper'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TunerRoute = TunerRouteImport.update({
@@ -23,6 +24,11 @@ const MetronomeRoute = MetronomeRouteImport.update({
   path: '/metronome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DrumLooperRoute = DrumLooperRouteImport.update({
+  id: '/drum-looper',
+  path: '/drum-looper',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,30 +37,34 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/drum-looper': typeof DrumLooperRoute
   '/metronome': typeof MetronomeRoute
   '/tuner': typeof TunerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/drum-looper': typeof DrumLooperRoute
   '/metronome': typeof MetronomeRoute
   '/tuner': typeof TunerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/drum-looper': typeof DrumLooperRoute
   '/metronome': typeof MetronomeRoute
   '/tuner': typeof TunerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/metronome' | '/tuner'
+  fullPaths: '/' | '/drum-looper' | '/metronome' | '/tuner'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/metronome' | '/tuner'
-  id: '__root__' | '/' | '/metronome' | '/tuner'
+  to: '/' | '/drum-looper' | '/metronome' | '/tuner'
+  id: '__root__' | '/' | '/drum-looper' | '/metronome' | '/tuner'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DrumLooperRoute: typeof DrumLooperRoute
   MetronomeRoute: typeof MetronomeRoute
   TunerRoute: typeof TunerRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MetronomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/drum-looper': {
+      id: '/drum-looper'
+      path: '/drum-looper'
+      fullPath: '/drum-looper'
+      preLoaderRoute: typeof DrumLooperRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DrumLooperRoute: DrumLooperRoute,
   MetronomeRoute: MetronomeRoute,
   TunerRoute: TunerRoute,
 }

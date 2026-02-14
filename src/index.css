@@ -123,7 +123,11 @@
 }
 
 .metronome-slider {
-  background: linear-gradient(90deg, color-mix(in oklab, var(--primary) 24%, var(--muted)) 0%, var(--muted) 100%);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--primary) 24%, var(--muted)) 0%,
+    var(--muted) 100%
+  );
 }
 
 .metronome-slider::-webkit-slider-runnable-track {

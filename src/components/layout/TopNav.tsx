@@ -81,7 +81,7 @@ export function TopNav() {
         <div className="bg-primary rounded-md px-1.5 py-1.5">
           <AudioLines className="h-5 w-5 text-white " />
         </div>
-        <span>AudioLines Tools</span>
+        <span>Music Tools</span>
       </Link>
 
       <nav className="ml-auto flex items-center gap-2">

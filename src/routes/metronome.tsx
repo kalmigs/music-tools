@@ -683,7 +683,9 @@ function MetronomePage() {
 
           {isCountingIn && (
             <div className="flex min-h-32 items-center justify-center">
-              <span className="text-7xl font-bold tracking-tight text-primary">{countInRemaining}</span>
+              <span className="text-7xl font-bold tracking-tight text-primary">
+                {countInRemaining}
+              </span>
             </div>
           )}
 
@@ -721,9 +723,11 @@ function MetronomePage() {
                   ) : (
                     <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">
                       Speed:{' '}
-                      {speedTrainerConfig.loops > 0 ? `${speedTrainerConfig.loops} loops` : '∞ loops'}{' '}
-                      × {speedTrainerConfig.repeatsPerLoop} repeats (+{speedTrainerConfig.bpmIncrement}{' '}
-                      BPM)
+                      {speedTrainerConfig.loops > 0
+                        ? `${speedTrainerConfig.loops} loops`
+                        : '∞ loops'}{' '}
+                      × {speedTrainerConfig.repeatsPerLoop} repeats (+
+                      {speedTrainerConfig.bpmIncrement} BPM)
                     </span>
                   ))}
                 {timerConfig.enabled && (
