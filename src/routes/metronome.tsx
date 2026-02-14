@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { zodValidator } from '@tanstack/zod-adapter';
 import {
   Check,
   ChevronDownIcon,
@@ -10,6 +11,7 @@ import {
   Plus,
   Settings,
 } from 'lucide-react';
+import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -88,6 +90,17 @@ interface TimerConfig {
 // Constants
 const BPM_ADJUSTMENTS = [-10, -5, 5, 10];
 const COUNT_IN_OPTIONS = [0, 1, 2, 3, 4] as const;
+const searchSchema = z.object({
+  bpm: z.number().optional(),
+  bpmIncrement: z.number().optional(),
+  countIn: z.number().optional(),
+  loops: z.number().optional(),
+  repeatsPerLoop: z.number().optional(),
+  speedTrainer: z.boolean().optional(),
+  timer: z.boolean().optional(),
+  timerDuration: z.number().optional(),
+  timeSignature: z.string().optional(),
+});
 
 // Helper functions
 function findTimeSignature(label: string | undefined): TimeSignature {
@@ -808,15 +821,5 @@ function MetronomePage() {
 // Route export
 export const Route = createFileRoute('/metronome')({
   component: MetronomePage,
-  validateSearch: (search: Record<string, unknown>): SearchParams => ({
-    bpm: typeof search.bpm === 'number' ? search.bpm : undefined,
-    bpmIncrement: typeof search.bpmIncrement === 'number' ? search.bpmIncrement : undefined,
-    countIn: typeof search.countIn === 'number' ? search.countIn : undefined,
-    loops: typeof search.loops === 'number' ? search.loops : undefined,
-    repeatsPerLoop: typeof search.repeatsPerLoop === 'number' ? search.repeatsPerLoop : undefined,
-    speedTrainer: typeof search.speedTrainer === 'boolean' ? search.speedTrainer : undefined,
-    timer: typeof search.timer === 'boolean' ? search.timer : undefined,
-    timerDuration: typeof search.timerDuration === 'number' ? search.timerDuration : undefined,
-    timeSignature: typeof search.timeSignature === 'string' ? search.timeSignature : undefined,
-  }),
+  validateSearch: zodValidator(searchSchema),
 });

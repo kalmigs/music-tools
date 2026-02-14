@@ -11,12 +11,22 @@ Persist page settings in URL query parameters for shareability and bookmarking.
 ## Implementation Pattern
 
 ```tsx
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { zodValidator } from '@tanstack/zod-adapter';
+import { z } from 'zod';
+
 // Types
 interface SearchParams {
   bpm?: number;
   enabled?: boolean;
   mode?: string;
 }
+
+const searchSchema = z.object({
+  bpm: z.number().optional(),
+  enabled: z.boolean().optional(),
+  mode: z.string().optional(),
+});
 
 // Main component
 function ToolPage() {
@@ -42,18 +52,14 @@ function ToolPage() {
 // Route export with validateSearch
 export const Route = createFileRoute('/tool')({
   component: ToolPage,
-  validateSearch: (search: Record<string, unknown>): SearchParams => ({
-    bpm: typeof search.bpm === 'number' ? search.bpm : undefined,
-    enabled: typeof search.enabled === 'boolean' ? search.enabled : undefined,
-    mode: typeof search.mode === 'string' ? search.mode : undefined,
-  }),
+  validateSearch: zodValidator(searchSchema),
 });
 ```
 
 ## Guidelines
 
 - Use `replace: true` to avoid polluting browser history
-- Validate all search params in `validateSearch`
+- Use Zod schema + `zodValidator` for all `validateSearch` implementations
 - Provide defaults when params are undefined
 - Keep param names short but descriptive
 - Use appropriate types (number, boolean, string)

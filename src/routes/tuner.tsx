@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { zodValidator } from '@tanstack/zod-adapter';
 import { Mic, MicOff } from 'lucide-react';
+import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { getStandardFrequency, NOTE_STRINGS } from '@/lib/tuner-utils';
@@ -39,6 +41,10 @@ interface SearchParams {
 const DEFAULT_A4 = 440;
 const MIN_A4 = 430;
 const MAX_A4 = 450;
+const searchSchema = z.object({
+  a4: z.number().optional(),
+  auto: z.boolean().optional(),
+});
 
 // Build note list: C1 (value 24) through B8 (value 107)
 const MIN_OCTAVE = 1;
@@ -86,10 +92,7 @@ function TunerMeter({ cents }: { cents: number }) {
 
 export const Route = createFileRoute('/tuner')({
   component: TunerPage,
-  validateSearch: (search: Record<string, unknown>): SearchParams => ({
-    a4: typeof search.a4 === 'number' ? search.a4 : undefined,
-    auto: typeof search.auto === 'boolean' ? search.auto : undefined,
-  }),
+  validateSearch: zodValidator(searchSchema),
 });
 
 function TunerPage() {
