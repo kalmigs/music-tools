@@ -17,8 +17,9 @@ alwaysApply: true
 - `src/routes/` - TanStack Router file-based routes
 - `src/components/ui/` - Base UI components (basecn)
 - `src/components/layout/` - Layout components (TopNav, Sidebar)
-- `src/hooks/` - Custom React hooks (use-*.ts)
+- `src/hooks/` - Custom React hooks (use-\*.ts)
 - `src/lib/` - Utilities and helpers (non-hook functions)
+- `tests/` - Test files; mirrors `src/` directory structure (e.g. `tests/lib/utils/dateParser.spec.ts` for `src/lib/utils/dateParser.ts`). Keeps `src` free of test files.
 
 ## Code Style
 

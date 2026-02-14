@@ -38,22 +38,22 @@ const MIN_NOTE_AHEAD_SECONDS = 0.04;
 const SCHEDULER_INTERVAL_MS = 25;
 
 // Helper functions
-function getStepCount(section: DrumSection): number {
+export function getStepCount(section: DrumSection): number {
   return section.beatsPerBar * section.bars * section.stepsPerBeat;
 }
 
-function isStepActive(track: DrumTrack, section: DrumSection, stepIndex: number): boolean {
+export function isStepActive(track: DrumTrack, section: DrumSection, stepIndex: number): boolean {
   return section.pattern[track.id]?.includes(stepIndex) ?? false;
 }
 
-function shouldPlayTrack(track: DrumTrack, hasSolo: boolean): boolean {
+export function shouldPlayTrack(track: DrumTrack, hasSolo: boolean): boolean {
   if (hasSolo) {
     return track.solo && !track.mute;
   }
   return !track.mute;
 }
 
-function getSwingOffsetSeconds(
+export function getSwingOffsetSeconds(
   section: DrumSection,
   stepIndex: number,
   stepDurationSeconds: number,

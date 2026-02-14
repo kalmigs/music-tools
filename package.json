@@ -8,6 +8,7 @@
     "prebuild": "pnpm exec tsc scripts/drumLooper.generator.ts --module nodenext --moduleResolution nodenext --target es2022 --outDir .tmp/generators && node .tmp/generators/drumLooper.generator.js",
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "vitest",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "preview": "vite preview",
@@ -29,6 +30,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "vaul-base": "^1.0.0",
+    "vitest": "^4.0.18",
     "zod": "^4.3.6"
   },
   "devDependencies": {
