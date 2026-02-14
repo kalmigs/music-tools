@@ -102,14 +102,14 @@ function BeatIndicator({ beat, currentBeat, isAccent, isDownbeat }: BeatIndicato
   return (
     <div
       className={cn(
-        'flex size-14 items-center justify-center rounded-full border-4 transition-all duration-75 sm:size-16',
+        'flex size-14 items-center justify-center rounded-full border-4 transition-all duration-100 sm:size-16',
         isActive
           ? isDownbeat
-            ? 'scale-110 border-primary bg-primary'
+            ? 'scale-110 border-primary bg-primary shadow-[0_0_0_6px_color-mix(in_oklab,var(--primary)_18%,transparent)]'
             : isAccent
-              ? 'scale-108 border-orange-500 bg-orange-500'
+              ? 'scale-108 border-orange-500 bg-orange-500 shadow-[0_0_0_5px_rgba(249,115,22,0.2)]'
               : 'scale-105 border-amber-400 bg-amber-400'
-          : 'border-muted-foreground/30 bg-transparent',
+          : 'border-muted-foreground/30 bg-card/30 shadow-inner',
       )}
     >
       <div
@@ -121,7 +121,7 @@ function BeatIndicator({ beat, currentBeat, isAccent, isDownbeat }: BeatIndicato
               : isAccent
                 ? 'bg-orange-100'
                 : 'bg-amber-100'
-            : 'bg-muted-foreground/20',
+            : 'bg-muted-foreground/30',
         )}
       />
     </div>
@@ -134,14 +134,18 @@ function BpmControls({ bpm, onBpmChange }: BpmControlsProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="text-center">
-        <span className="text-2xl font-bold">{bpm} BPM</span>
+        <div className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground/90">
+          Tempo
+        </div>
+        <span className="text-4xl font-bold tracking-tight tabular-nums">{bpm} BPM</span>
         <span className="ml-2 text-muted-foreground">({getTempoName(bpm)})</span>
       </div>
 
       <div className="flex items-center gap-3">
         <Button
+          className="rounded-xl"
           disabled={bpm <= MIN_BPM}
           onClick={() => onBpmChange(bpm - 1)}
           size="icon"
@@ -151,7 +155,7 @@ function BpmControls({ bpm, onBpmChange }: BpmControlsProps) {
         </Button>
 
         <input
-          className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-muted accent-primary"
+          className="metronome-slider h-2 flex-1 cursor-pointer appearance-none rounded-lg"
           max={MAX_BPM}
           min={MIN_BPM}
           onChange={handleSliderChange}
@@ -160,6 +164,7 @@ function BpmControls({ bpm, onBpmChange }: BpmControlsProps) {
         />
 
         <Button
+          className="rounded-xl"
           disabled={bpm >= MAX_BPM}
           onClick={() => onBpmChange(bpm + 1)}
           size="icon"
@@ -172,6 +177,7 @@ function BpmControls({ bpm, onBpmChange }: BpmControlsProps) {
       <div className="flex justify-center gap-2">
         {BPM_ADJUSTMENTS.map(adjustment => (
           <Button
+            className="min-w-14 rounded-xl"
             key={adjustment}
             onClick={() => onBpmChange(bpm + adjustment)}
             size="sm"
@@ -653,119 +659,143 @@ function MetronomePage() {
     [updateSearch],
   );
 
+  const showStatus =
+    (isPlaying && !isCountingIn && (speedTrainerConfig.enabled || timerConfig.enabled)) ||
+    (!isPlaying && (timerConfig.enabled || speedTrainerConfig.enabled));
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      {/* Count-in display */}
-      {isCountingIn && (
-        <div className="flex flex-1 items-center justify-center py-8.5">
-          <span className="text-6xl font-bold text-primary">{countInRemaining}</span>
-        </div>
-      )}
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-card via-card to-background p-4 shadow-sm sm:p-5">
+        <div className="pointer-events-none absolute -top-28 right-6 h-60 w-60 rounded-full bg-primary/8 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 left-10 h-48 w-48 rounded-full bg-orange-400/8 blur-3xl" />
 
-      {/* Beat indicators */}
-      {!isCountingIn && (
-        <div className="flex flex-1 flex-wrap items-center justify-center gap-2 py-8 sm:gap-3">
-          {Array.from({ length: timeSignature.beats }).map((_, i) => (
-            <BeatIndicator
-              key={i}
-              beat={i}
-              currentBeat={currentBeat}
-              isAccent={isAccentBeat(i, timeSignature.subdivision)}
-              isDownbeat={isDownbeat(i)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Status bar */}
-      {(isPlaying && !isCountingIn && (speedTrainerConfig.enabled || timerConfig.enabled)) ||
-      (!isPlaying && (timerConfig.enabled || speedTrainerConfig.enabled)) ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-            {speedTrainerConfig.enabled &&
-              (isPlaying && speedTrainerState ? (
-                <>
-                  <span>
-                    Loop {speedTrainerState.currentLoop}
-                    {speedTrainerConfig.loops > 0 ? `/${speedTrainerConfig.loops}` : ''}
-                  </span>
-                  <span>
-                    {speedTrainerState.currentRepeat}/{speedTrainerConfig.repeatsPerLoop}
-                  </span>
-                  <span>{speedTrainerState.currentBpm} BPM</span>
-                </>
-              ) : (
-                <span>
-                  Speed:{' '}
-                  {speedTrainerConfig.loops > 0 ? `${speedTrainerConfig.loops} loops` : '∞ loops'} ×{' '}
-                  {speedTrainerConfig.repeatsPerLoop} repeats (+{speedTrainerConfig.bpmIncrement}{' '}
-                  BPM)
-                </span>
-              ))}
-            {timerConfig.enabled && (
-              <span>
-                {isPlaying
-                  ? `${formatTime(elapsedSeconds)} / ${formatTime(timerConfig.durationSeconds)}`
-                  : `Timer: ${formatTime(timerConfig.durationSeconds)}`}
-              </span>
-            )}
+        <div className="relative space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground/90">
+                Metronome
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
+              {timeSignature.label}
+            </div>
           </div>
-          {timerConfig.enabled && (
-            <div className="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-primary transition-all duration-1000"
-                style={{
-                  width: `${(elapsedSeconds / timerConfig.durationSeconds) * 100}%`,
-                }}
-              />
+
+          {isCountingIn && (
+            <div className="flex min-h-32 items-center justify-center">
+              <span className="text-7xl font-bold tracking-tight text-primary">{countInRemaining}</span>
+            </div>
+          )}
+
+          {!isCountingIn && (
+            <div className="flex min-h-32 flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+              {Array.from({ length: timeSignature.beats }).map((_, i) => (
+                <BeatIndicator
+                  key={i}
+                  beat={i}
+                  currentBeat={currentBeat}
+                  isAccent={isAccentBeat(i, timeSignature.subdivision)}
+                  isDownbeat={isDownbeat(i)}
+                />
+              ))}
+            </div>
+          )}
+
+          {showStatus && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground">
+                {speedTrainerConfig.enabled &&
+                  (isPlaying && speedTrainerState ? (
+                    <>
+                      <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">
+                        Loop {speedTrainerState.currentLoop}
+                        {speedTrainerConfig.loops > 0 ? `/${speedTrainerConfig.loops}` : ''}
+                      </span>
+                      <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">
+                        {speedTrainerState.currentRepeat}/{speedTrainerConfig.repeatsPerLoop}
+                      </span>
+                      <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1 font-medium text-foreground">
+                        {speedTrainerState.currentBpm} BPM
+                      </span>
+                    </>
+                  ) : (
+                    <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">
+                      Speed:{' '}
+                      {speedTrainerConfig.loops > 0 ? `${speedTrainerConfig.loops} loops` : '∞ loops'}{' '}
+                      × {speedTrainerConfig.repeatsPerLoop} repeats (+{speedTrainerConfig.bpmIncrement}{' '}
+                      BPM)
+                    </span>
+                  ))}
+                {timerConfig.enabled && (
+                  <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1">
+                    {isPlaying
+                      ? `${formatTime(elapsedSeconds)} / ${formatTime(timerConfig.durationSeconds)}`
+                      : `Timer: ${formatTime(timerConfig.durationSeconds)}`}
+                  </span>
+                )}
+              </div>
+              {timerConfig.enabled && (
+                <div className="mx-auto h-2 w-64 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all duration-1000"
+                    style={{
+                      width: `${(elapsedSeconds / timerConfig.durationSeconds) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
-      ) : null}
+      </section>
 
       {/* BPM Controls */}
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm">
         <BpmControls bpm={bpm} onBpmChange={handleBpmChange} />
       </div>
 
       {/* Feature toggles */}
-      <div className="flex items-center justify-center gap-2">
-        <SettingsDialog countIn={countIn} onCountInChange={handleCountInChange} />
-        <SpeedTrainerDialog
-          enabledExplicitlySet={speedTrainerEnabledExplicitlySet}
-          onSave={handleSpeedTrainerChange}
-          value={speedTrainerConfig}
-        />
-        <TimerDialog
-          enabledExplicitlySet={timerEnabledExplicitlySet}
-          onSave={handleTimerChange}
-          value={timerConfig}
-        />
+      <div className="rounded-2xl border border-border/70 bg-card/70 p-3 backdrop-blur sm:p-4">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <SettingsDialog countIn={countIn} onCountInChange={handleCountInChange} />
+          <SpeedTrainerDialog
+            enabledExplicitlySet={speedTrainerEnabledExplicitlySet}
+            onSave={handleSpeedTrainerChange}
+            value={speedTrainerConfig}
+          />
+          <TimerDialog
+            enabledExplicitlySet={timerEnabledExplicitlySet}
+            onSave={handleTimerChange}
+            value={timerConfig}
+          />
+        </div>
       </div>
 
       {/* Bottom controls */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-        <div className="flex items-center justify-center gap-3">
-          <TimeSignatureCombobox onChange={handleTimeSignatureChange} value={timeSignature} />
+      <div className="rounded-2xl border border-border/70 bg-card/70 p-3 backdrop-blur sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+          <div className="flex items-center justify-center gap-3">
+            <TimeSignatureCombobox onChange={handleTimeSignatureChange} value={timeSignature} />
 
-          <Button className="px-6" onClick={tap} variant="outline">
-            Tap tempo
+            <Button className="rounded-xl px-6" onClick={tap} variant="outline">
+              Tap tempo
+            </Button>
+          </div>
+
+          <Button className="w-full gap-2 rounded-xl px-6 sm:w-auto" onClick={toggle} size="lg">
+            {isPlaying ? (
+              <>
+                <Pause className="size-5" />
+                Stop
+              </>
+            ) : (
+              <>
+                <Play className="size-5" />
+                Start
+              </>
+            )}
           </Button>
         </div>
-
-        <Button className="w-full gap-2 px-6 sm:w-auto" onClick={toggle} size="lg">
-          {isPlaying ? (
-            <>
-              <Pause className="size-5" />
-              Stop
-            </>
-          ) : (
-            <>
-              <Play className="size-5" />
-              Start
-            </>
-          )}
-        </Button>
       </div>
     </div>
   );

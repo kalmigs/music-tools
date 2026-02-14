@@ -121,3 +121,40 @@
     @apply bg-background text-foreground;
   }
 }
+
+.metronome-slider {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--primary) 24%, var(--muted)) 0%, var(--muted) 100%);
+}
+
+.metronome-slider::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.metronome-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: -0.26rem;
+  border-radius: 9999px;
+  background: var(--background);
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 20%, transparent);
+}
+
+.metronome-slider::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--muted);
+}
+
+.metronome-slider::-moz-range-thumb {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 9999px;
+  background: var(--background);
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 20%, transparent);
+}
