@@ -135,7 +135,7 @@ export function useDrumEngine({ project }: UseDrumEngineOptions): UseDrumEngineR
     }
   }, [project]);
 
-  const ensureAudioContext = useCallback(async () => {
+  const ensureAudioContext = useCallback(async (shouldResume = true) => {
     if (!audioContextRef.current) {
       const audioContext = new AudioContext();
       const masterCompressor = audioContext.createDynamicsCompressor();
@@ -158,7 +158,7 @@ export function useDrumEngine({ project }: UseDrumEngineOptions): UseDrumEngineR
       warmupAudioContext(audioContext);
     }
 
-    if (audioContextRef.current.state === 'suspended') {
+    if (shouldResume && audioContextRef.current.state === 'suspended') {
       await audioContextRef.current.resume();
     }
 

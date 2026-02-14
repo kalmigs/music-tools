@@ -811,14 +811,22 @@ function DrumLooperPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button className="gap-2" onClick={() => void toggle()}>
+            <Button
+              className="gap-2"
+              onClick={() => void toggle()}
+            >
               {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
-              {isPlaying ? 'Stop' : 'Play'}
+              {isBuffering && !isPlaying ? 'Loading Samples...' : isPlaying ? 'Stop' : 'Play'}
             </Button>
             <Button className="gap-2" onClick={copyShareUrl} variant="outline">
               <Copy className="size-4" />
               Copy URL
             </Button>
+            {isBuffering && (
+              <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
+                preloading audio
+              </span>
+            )}
           </div>
         </div>
 
