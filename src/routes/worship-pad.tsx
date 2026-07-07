@@ -12,7 +12,6 @@ import {
   Waves,
   Wind,
 } from 'lucide-react';
-import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +28,12 @@ import { useRegisterShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useWorshipPad, type PadSettings } from '@/hooks/use-worship-pad';
 import { cn } from '@/lib/utils';
 import {
+  OCTAVE_MAX,
+  OCTAVE_MIN,
+  searchSchema,
+  type SearchParams,
+} from '@/lib/worship-pad-search';
+import {
   KEYS,
   MODES,
   SYNTH_PRESETS,
@@ -42,22 +47,6 @@ import {
 } from '@/lib/worship-pad-utils';
 
 // Types
-interface SearchParams {
-  attack?: number;
-  drone?: boolean;
-  key?: Key;
-  mode?: Mode;
-  octave?: number;
-  preset?: SynthPreset;
-  release?: number;
-  reverb?: number;
-  shimmer?: boolean;
-  shimmerReverb?: number;
-  subRoot?: boolean;
-  variant?: Variant;
-  volume?: number;
-}
-
 interface ChordButtonProps {
   active: boolean;
   chord: Chord;
@@ -79,28 +68,7 @@ const DEFAULT_SHIMMER = false;
 const DEFAULT_SHIMMER_REVERB = 0.15;
 const DEFAULT_PRESET: SynthPreset = 'pad';
 
-const OCTAVE_MIN = 1;
-const OCTAVE_MAX = 4;
 const VOLUME_STEP = 0.05;
-
-// Every field is `.catch(undefined)` so a stale, hand-edited, or out-of-range
-// shared URL (e.g. ?octave=8) falls back to the default instead of throwing and
-// crashing the route — the page's `?? DEFAULT_*` reads then supply the default.
-const searchSchema = z.object({
-  attack: z.number().min(0.1).max(4).optional().catch(undefined),
-  drone: z.boolean().optional().catch(undefined),
-  key: z.enum(KEYS).optional().catch(undefined),
-  mode: z.enum(MODES).optional().catch(undefined),
-  octave: z.number().int().min(OCTAVE_MIN).max(OCTAVE_MAX).optional().catch(undefined),
-  preset: z.enum(SYNTH_PRESETS).optional().catch(undefined),
-  release: z.number().min(0.3).max(6).optional().catch(undefined),
-  reverb: z.number().min(0).max(1).optional().catch(undefined),
-  shimmer: z.boolean().optional().catch(undefined),
-  shimmerReverb: z.number().min(0).max(0.85).optional().catch(undefined),
-  subRoot: z.boolean().optional().catch(undefined),
-  variant: z.enum(VARIANTS).optional().catch(undefined),
-  volume: z.number().min(0).max(1).optional().catch(undefined),
-});
 
 // Helpers
 function clamp(value: number, min: number, max: number): number {
