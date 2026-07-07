@@ -20,4 +20,14 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // basecn/shadcn UI primitives and the app's context providers deliberately
+    // co-locate variants (cva) and hooks with their components. react-refresh's
+    // "only export components" rule is a dev-HMR optimization that doesn't fit
+    // that pattern and isn't a correctness concern, so disable it here.
+    files: ['src/components/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ]);
