@@ -95,6 +95,9 @@ interface UseWorshipPadReturn {
   activeChord: Chord | null;
   ducked: boolean;
   droneActive: boolean;
+  // True when the current preset's pad voice uses a fixed envelope (e.g. Bell's
+  // strike), so the Attack/Release controls don't affect the pad tone.
+  envelopeLocked: boolean;
   isReady: boolean;
   latched: boolean;
   playChord: (
@@ -729,10 +732,13 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
     }
   }, []);
 
+  const envelopeLocked = PRESETS[settings.preset].envelope !== undefined;
+
   return {
     activeChord,
     ducked,
     droneActive,
+    envelopeLocked,
     isReady,
     latched,
     playChord,

@@ -212,6 +212,7 @@ function SliderRow({ label, max, min, onChange, step, value, valueLabel }: Slide
 
 interface SettingsDialogProps {
   attack: number;
+  envelopeLocked: boolean;
   release: number;
   shimmerReverb: number;
   onAttackChange: (value: number) => void;
@@ -222,6 +223,7 @@ interface SettingsDialogProps {
 
 function SettingsDialog({
   attack,
+  envelopeLocked,
   release,
   shimmerReverb,
   onAttackChange,
@@ -263,6 +265,12 @@ function SettingsDialog({
             onChange={onReleaseChange}
             valueLabel={`${release.toFixed(1)} s`}
           />
+          {envelopeLocked && (
+            <p className="text-xs text-muted-foreground">
+              This preset uses a fixed strike envelope — attack &amp; release shape only the drone
+              and shimmer layers.
+            </p>
+          )}
           <SliderRow
             label="Shimmer verb"
             min={0}
@@ -533,7 +541,7 @@ function WorshipPadPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-card via-card to-background p-5 shadow-sm sm:p-6">
         <div className="pointer-events-none absolute -top-20 right-10 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 left-6 h-44 w-44 rounded-full bg-indigo-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-6 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
@@ -574,6 +582,7 @@ function WorshipPadPage() {
           </div>
           <SettingsDialog
             attack={attack}
+            envelopeLocked={pad.envelopeLocked}
             release={release}
             shimmerReverb={shimmerReverb}
             onAttackChange={next => updateSearch({ attack: next })}
