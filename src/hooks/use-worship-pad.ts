@@ -505,6 +505,21 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
     setDuckedState(on);
   }, []);
 
+  // Derive the notes to sound for a chord. Drop the sub-root when the drone is
+  // (desired to be) covering it, so bass level stays constant whether Sub, Drone,
+  // or both are on. Reads droneDesiredRef — set synchronously in setDrone — rather
+  // than droneNotesRef, so a mid-chord drone toggle re-voices correctly even before
+  // the drone's note has been (re)attached asynchronously.
+  const computeVoicing = useCallback(
+    (chord: Chord, variant: Variant, octave: number, subRoot: boolean, shimmer: boolean) => {
+      const droneCoversSubRoot = droneDesiredRef.current;
+      const midi = chordToMidi(chord, octave, variant, subRoot && !droneCoversSubRoot);
+      const shimmerMidi = shimmer ? midi.map(n => n + SHIMMER_SEMITONES) : [];
+      return { midi, shimmerMidi };
+    },
+    [],
+  );
+
   const playChord = useCallback<UseWorshipPadReturn['playChord']>(
     async (chord, variant, octave, subRoot, shimmer) => {
       if (Tone.getContext().state !== 'running') {
@@ -543,13 +558,9 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
         shimmerSynth.triggerRelease(previousShimmer.map(midiToFreq));
       }
 
-      // Drop the sub-root from the chord when the drone is already playing it,
-      // so bass level stays the same whether Sub, Drone, or both are on.
-      const droneCoversSubRoot = droneNotesRef.current.length > 0;
-      const midi = chordToMidi(chord, octave, variant, subRoot && !droneCoversSubRoot);
+      const { midi, shimmerMidi } = computeVoicing(chord, variant, octave, subRoot, shimmer);
       synth.triggerAttack(midi.map(midiToFreq));
 
-      const shimmerMidi = shimmer ? midi.map(n => n + SHIMMER_SEMITONES) : [];
       if (shimmerSynth && shimmerMidi.length > 0) {
         shimmerSynth.triggerAttack(shimmerMidi.map(midiToFreq));
       }
@@ -574,7 +585,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       setActiveChord(chord);
       setIsReady(true);
     },
-    [],
+    [computeVoicing],
   );
 
   const refreshVoicing = useCallback<UseWorshipPadReturn['refreshVoicing']>(
@@ -583,9 +594,13 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       const shimmerSynth = shimmerSynthRef.current;
       if (!synth || currentNotesRef.current.length === 0) return;
 
-      const droneCoversSubRoot = droneNotesRef.current.length > 0;
-      const nextMidi = chordToMidi(chord, octave, variant, subRoot && !droneCoversSubRoot);
-      const nextShimmerMidi = shimmer ? nextMidi.map(n => n + SHIMMER_SEMITONES) : [];
+      const { midi: nextMidi, shimmerMidi: nextShimmerMidi } = computeVoicing(
+        chord,
+        variant,
+        octave,
+        subRoot,
+        shimmer,
+      );
       const previous = currentNotesRef.current;
       const previousShimmer = currentShimmerNotesRef.current;
 
@@ -614,7 +629,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       activeChordRef.current = chord;
       setActiveChord(chord);
     },
-    [],
+    [computeVoicing],
   );
 
   const retuneDrone = useCallback<UseWorshipPadReturn['retuneDrone']>((rootPc, octave) => {

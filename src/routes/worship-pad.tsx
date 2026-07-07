@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
 import {
@@ -83,20 +83,23 @@ const OCTAVE_MIN = 1;
 const OCTAVE_MAX = 4;
 const VOLUME_STEP = 0.05;
 
+// Every field is `.catch(undefined)` so a stale, hand-edited, or out-of-range
+// shared URL (e.g. ?octave=8) falls back to the default instead of throwing and
+// crashing the route — the page's `?? DEFAULT_*` reads then supply the default.
 const searchSchema = z.object({
-  attack: z.number().min(0.1).max(4).optional(),
-  drone: z.boolean().optional(),
-  key: z.enum(KEYS).optional(),
-  mode: z.enum(MODES).optional(),
-  octave: z.number().int().min(OCTAVE_MIN).max(OCTAVE_MAX).optional(),
-  preset: z.enum(SYNTH_PRESETS).optional(),
-  release: z.number().min(0.3).max(6).optional(),
-  reverb: z.number().min(0).max(1).optional(),
-  shimmer: z.boolean().optional(),
-  shimmerReverb: z.number().min(0).max(0.85).optional(),
-  subRoot: z.boolean().optional(),
-  variant: z.enum(VARIANTS).optional(),
-  volume: z.number().min(0).max(1).optional(),
+  attack: z.number().min(0.1).max(4).optional().catch(undefined),
+  drone: z.boolean().optional().catch(undefined),
+  key: z.enum(KEYS).optional().catch(undefined),
+  mode: z.enum(MODES).optional().catch(undefined),
+  octave: z.number().int().min(OCTAVE_MIN).max(OCTAVE_MAX).optional().catch(undefined),
+  preset: z.enum(SYNTH_PRESETS).optional().catch(undefined),
+  release: z.number().min(0.3).max(6).optional().catch(undefined),
+  reverb: z.number().min(0).max(1).optional().catch(undefined),
+  shimmer: z.boolean().optional().catch(undefined),
+  shimmerReverb: z.number().min(0).max(0.85).optional().catch(undefined),
+  subRoot: z.boolean().optional().catch(undefined),
+  variant: z.enum(VARIANTS).optional().catch(undefined),
+  volume: z.number().min(0).max(1).optional().catch(undefined),
 });
 
 // Helpers
@@ -359,21 +362,32 @@ function WorshipPadPage() {
   const tonic = chords[0];
   const droneOctave = Math.max(octave - 1, OCTAVE_MIN);
 
-  const [pointerDownChord, setPointerDownChord] = useState<number | null>(null);
+  // Track who is holding a chord (pointer vs keyboard) so a stray pointerup
+  // elsewhere on the page can't release a chord being sustained via a held key,
+  // and so the held-key set survives the effect re-subscribing on every render.
+  const pointerHeldRef = useRef(false);
+  const keysDownRef = useRef<Set<number>>(new Set());
 
-  const handlePressChord = useCallback(
+  const playChordAt = useCallback(
     (index: number) => {
-      setPointerDownChord(index);
       void pad.playChord(chords[index], variant, octave, subRoot, shimmer);
     },
     [chords, octave, pad, shimmer, subRoot, variant],
   );
 
-  const handleReleaseChord = useCallback(() => {
-    if (pointerDownChord === null) return;
-    setPointerDownChord(null);
+  // Release the sounding chord only once nothing — pointer or keyboard — holds it.
+  const releaseIfIdle = useCallback(() => {
+    if (pointerHeldRef.current || keysDownRef.current.size > 0) return;
     pad.releaseChord();
-  }, [pad, pointerDownChord]);
+  }, [pad]);
+
+  const handlePointerPressChord = useCallback(
+    (index: number) => {
+      pointerHeldRef.current = true;
+      playChordAt(index);
+    },
+    [playChordAt],
+  );
 
   // Live-update the sounding chord and drone when voicing params change mid-play
   const activeChordRef = useRef(pad.activeChord);
@@ -382,22 +396,25 @@ function WorshipPadPage() {
   }, [pad.activeChord]);
 
   const { refreshVoicing, retuneDrone, setDrone, setShimmerFeedback } = pad;
+
+  // Sync drone audio to the URL-driven drone state. Ordered BEFORE the re-voicing
+  // effect below so the drone's desired state is set first — the chord drops its
+  // sub-root when the drone covers it, so both must re-derive from the same intent.
+  useEffect(() => {
+    setDrone(drone, tonic.rootPc, droneOctave);
+  }, [drone, droneOctave, setDrone, tonic.rootPc]);
+
   useEffect(() => {
     const active = activeChordRef.current;
     if (!active) return;
     const next = chords[active.degree - 1];
     if (!next) return;
     refreshVoicing(next, variant, octave, subRoot, shimmer);
-  }, [chords, octave, refreshVoicing, shimmer, subRoot, variant]);
+  }, [chords, drone, octave, refreshVoicing, shimmer, subRoot, variant]);
 
   useEffect(() => {
     retuneDrone(tonic.rootPc, droneOctave);
   }, [droneOctave, retuneDrone, tonic.rootPc]);
-
-  // Sync drone audio to the URL-driven drone state
-  useEffect(() => {
-    setDrone(drone, tonic.rootPc, droneOctave);
-  }, [drone, droneOctave, setDrone, tonic.rootPc]);
 
   // Gate the pitch-shifted reverb feedback loop on the URL-driven shimmer flag
   // so the PitchShift isn't processing audio when shimmer is off.
@@ -405,16 +422,21 @@ function WorshipPadPage() {
     setShimmerFeedback(shimmer);
   }, [setShimmerFeedback, shimmer]);
 
-  // Global pointerup so dragging off a chord button still releases it
+  // Global pointerup so dragging off a chord button still releases it — but only
+  // for a pointer-initiated hold, so it never cuts a keyboard-held chord.
   useEffect(() => {
-    const handleUp = () => handleReleaseChord();
+    const handleUp = () => {
+      if (!pointerHeldRef.current) return;
+      pointerHeldRef.current = false;
+      releaseIfIdle();
+    };
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleUp);
     return () => {
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
     };
-  }, [handleReleaseChord]);
+  }, [releaseIfIdle]);
 
   // Keyboard shortcuts (play + release)
   useEffect(() => {
@@ -426,22 +448,25 @@ function WorshipPadPage() {
       );
     };
 
-    const chordDown = new Set<number>();
+    const keysDown = keysDownRef.current;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return;
 
       if (e.key >= '1' && e.key <= '7') {
         const index = Number(e.key) - 1;
-        if (chordDown.has(index) || e.repeat) return;
-        chordDown.add(index);
+        if (e.repeat || keysDown.has(index)) return;
+        keysDown.add(index);
         e.preventDefault();
-        handlePressChord(index);
+        playChordAt(index);
         return;
       }
 
       if (e.code === 'Space') {
+        // preventDefault even on repeat so a held Space never scrolls the page,
+        // but only toggle latch on the initial press.
         e.preventDefault();
+        if (e.repeat) return;
         pad.toggleLatch();
       } else if (e.key === 'd' || e.key === 'D') {
         if (e.repeat) return;
@@ -480,11 +505,8 @@ function WorshipPadPage() {
 
       if (e.key >= '1' && e.key <= '7') {
         const index = Number(e.key) - 1;
-        chordDown.delete(index);
-        if (pointerDownChord === index || pointerDownChord === null) {
-          setPointerDownChord(null);
-          pad.releaseChord();
-        }
+        if (!keysDown.delete(index)) return;
+        releaseIfIdle();
       } else if (e.key === 'd' || e.key === 'D') {
         pad.setDucked(false);
       }
@@ -496,18 +518,7 @@ function WorshipPadPage() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [
-    drone,
-    droneOctave,
-    handlePressChord,
-    octave,
-    pad,
-    pointerDownChord,
-    subRoot,
-    tonic.rootPc,
-    updateSearch,
-    volume,
-  ]);
+  }, [drone, octave, pad, playChordAt, releaseIfIdle, subRoot, updateSearch, volume]);
 
   useRegisterShortcuts([
     { key: '1–7', label: 'Play chords I through vii°' },
@@ -590,7 +601,7 @@ function WorshipPadPage() {
               key={chord.roman}
               chord={chord}
               active={pad.activeChord?.roman === chord.roman}
-              onPress={() => handlePressChord(i)}
+              onPress={() => handlePointerPressChord(i)}
             />
           ))}
         </div>
