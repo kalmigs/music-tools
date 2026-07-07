@@ -42,4 +42,4 @@ export const navItems: NavGroup[] = [
 ];
 ```
 
-This single source drives the desktop sidebar, the mobile sheet, and the homepage grid — update it when adding a page.
+This single source drives the desktop sidebar, the mobile sheet, and the homepage grid; update it when adding a page.

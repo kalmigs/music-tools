@@ -267,8 +267,8 @@ function SettingsDialog({
           />
           {envelopeLocked && (
             <p className="text-xs text-muted-foreground">
-              This preset uses a fixed strike envelope — attack &amp; release shape only the drone
-              and shimmer layers.
+              This preset uses a fixed strike envelope. Attack and release shape only the drone and
+              shimmer layers.
             </p>
           )}
           <SliderRow
@@ -351,7 +351,7 @@ function WorshipPadPage() {
     [chords, octave, pad, shimmer, subRoot, variant],
   );
 
-  // Release the sounding chord only once nothing — pointer or keyboard — holds it.
+  // Release the sounding chord only once nothing (pointer or keyboard) holds it.
   const releaseIfIdle = useCallback(() => {
     if (pointerHeldRef.current || keysDownRef.current.size > 0) return;
     pad.releaseChord();
@@ -375,7 +375,7 @@ function WorshipPadPage() {
     pad;
 
   // Sync drone audio to the URL-driven drone state. Ordered BEFORE the re-voicing
-  // effect below so the drone's desired state is set first — the chord drops its
+  // effect below so the drone's desired state is set first; the chord drops its
   // sub-root when the drone covers it, so both must re-derive from the same intent.
   useEffect(() => {
     setDrone(drone, tonic.rootPc, droneOctave);
@@ -399,7 +399,7 @@ function WorshipPadPage() {
     setShimmerFeedback(shimmer);
   }, [setShimmerFeedback, shimmer]);
 
-  // Global pointerup so dragging off a chord button still releases it — but only
+  // Global pointerup so dragging off a chord button still releases it, but only
   // for a pointer-initiated hold, so it never cuts a keyboard-held chord.
   useEffect(() => {
     const handleUp = () => {

@@ -1,7 +1,7 @@
 # Components
 
-- `ui/` — [basecn](https://basecn.dev) primitives (shadcn/ui rebuilt on Base UI). Copy-paste-customize pattern.
-- `layout/` — app shell: `TopNav`, `Sidebar`, `ThemeContext`, `SidebarContext`, `KeyboardShortcutsContext`.
+- `ui/`: [basecn](https://basecn.dev) primitives (shadcn/ui rebuilt on Base UI). Copy-paste-customize pattern.
+- `layout/`: app shell (`TopNav`, `Sidebar`, `ThemeContext`, `SidebarContext`, `KeyboardShortcutsContext`).
 
 ## Installing a new basecn component
 

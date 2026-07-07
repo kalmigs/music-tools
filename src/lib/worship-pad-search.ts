@@ -8,7 +8,7 @@ export const OCTAVE_MAX = 4;
 
 // Every field is `.catch(undefined)` so a stale, hand-edited, or out-of-range
 // shared URL (e.g. ?octave=8) falls back to the default instead of throwing and
-// crashing the route — the page's `?? DEFAULT_*` reads then supply the default.
+// crashing the route; the page's `?? DEFAULT_*` reads then supply the default.
 export const searchSchema = z.object({
   attack: z.number().min(0.1).max(4).optional().catch(undefined),
   drone: z.boolean().optional().catch(undefined),
@@ -25,6 +25,6 @@ export const searchSchema = z.object({
   volume: z.number().min(0).max(1).optional().catch(undefined),
 });
 
-// Single source of truth for the shape — derived from the schema so the two
+// Single source of truth for the shape, derived from the schema so the two
 // can't drift.
 export type SearchParams = z.infer<typeof searchSchema>;

@@ -404,7 +404,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
   }, []);
 
   // Push envelope changes to the synths.
-  // Presets with a fixed envelope (e.g. Bell's strike) aren't touched — their character depends on it.
+  // Presets with a fixed envelope (e.g. Bell's strike) aren't touched; their character depends on it.
   useEffect(() => {
     const envSource = { attack: settings.attack, release: settings.release } as const;
     if (!PRESETS[settings.preset].envelope) {
@@ -432,7 +432,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
     );
   }, [settings.shimmerReverbAmount]);
 
-  // Apply preset — update filters; swap synth class with crossfade when needed.
+  // Apply preset: update filters, swap synth class with crossfade when needed.
   useEffect(() => {
     const p = PRESETS[settings.preset];
     padLowpassRef.current?.frequency.rampTo(p.lowpassHz, 0.3);
@@ -473,7 +473,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       }
     } else {
       applyPresetParams(synth, p);
-      // Same class — retrigger so the new oscillator shape is heard.
+      // Same class: retrigger so the new oscillator shape is heard.
       if (currentNotesRef.current.length > 0) {
         const freqs = currentNotesRef.current.map(midiToFreq);
         synth.triggerRelease(freqs);
@@ -517,7 +517,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
 
   // Derive the notes to sound for a chord. Drop the sub-root when the drone is
   // (desired to be) covering it, so bass level stays constant whether Sub, Drone,
-  // or both are on. Reads droneDesiredRef — set synchronously in setDrone — rather
+  // or both are on. Reads droneDesiredRef (set synchronously in setDrone) rather
   // than droneNotesRef, so a mid-chord drone toggle re-voices correctly even before
   // the drone's note has been (re)attached asynchronously.
   const computeVoicing = useCallback(

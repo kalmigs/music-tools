@@ -1,6 +1,6 @@
 # Routes
 
-This directory holds TanStack Router file-based routes. The router plugin auto-generates `../routeTree.gen.ts` — never hand-edit it. `src/main.tsx` uses `createHashHistory()` so URLs are `/#/path` (GitHub Pages compat).
+This directory holds TanStack Router file-based routes. The router plugin auto-generates `../routeTree.gen.ts`; never hand-edit it. `src/main.tsx` uses `createHashHistory()` so URLs are `/#/path` (GitHub Pages compat).
 
 ## Creating a Route
 
@@ -28,7 +28,7 @@ src/routes/
     metronome.tsx   # /#/tools/metronome
 ```
 
-Link with `import { Link } from '@tanstack/react-router'` — `<Link to="/tools/metronome" />`.
+Link with `import { Link } from '@tanstack/react-router'`, e.g. `<Link to="/tools/metronome" />`.
 
 ## Query Parameters (page state)
 
@@ -80,7 +80,7 @@ export const Route = createFileRoute('/tool')({
 Guidelines:
 
 - `replace: true` on every update so the back button doesn't fill with slider drags.
-- Always `zodValidator(schema)` — never raw `validateSearch`.
+- Always `zodValidator(schema)`, never raw `validateSearch`.
 - Provide defaults when params are undefined; keep names short but descriptive.
 
 ## Adding a New Page
@@ -109,8 +109,8 @@ Before implementing, answer:
 Then:
 
 1. **Create the route** at `src/routes/<page-name>.tsx`.
-2. **Register in nav** — add an entry to `src/lib/nav.ts` (title, href, icon, description). This drives the sidebar, the mobile nav, and the homepage grid.
-3. **Add to homepage** — add a card in `src/routes/index.tsx` if it should be discoverable there.
+2. **Register in nav**: add an entry to `src/lib/nav.ts` (title, href, icon, description). This drives the sidebar, the mobile nav, and the homepage grid.
+3. **Add to homepage**: add a card in `src/routes/index.tsx` if it should be discoverable there.
 4. **Update `README.md`** Features list.
 5. **Register keyboard shortcuts** (if any) with `useRegisterShortcuts` so they show in the TopNav help popover, and implement the actual `keydown` handler:
 
