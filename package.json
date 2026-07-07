@@ -31,7 +31,7 @@
     "tailwindcss": "^4.2.1",
     "tone": "^15.1.22",
     "vaul-base": "^1.0.0",
-    "vitest": "^4.0.18",
+    "vitest": "^4.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -58,7 +58,9 @@
       "serialize-javascript": ">=7.0.3",
       "flatted": "3.4.2",
       "picomatch@^2": "2.3.2",
-      "picomatch@^4": "4.0.4"
+      "picomatch@^4": "4.0.4",
+      "fast-uri": ">=3.1.2 <4.0.0",
+      "@babel/plugin-transform-modules-systemjs": ">=7.29.4 <8.0.0"
     }
   },
   "packageManager": "pnpm@10.33.0"
