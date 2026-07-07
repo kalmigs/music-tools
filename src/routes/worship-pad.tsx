@@ -363,7 +363,8 @@ function WorshipPadPage() {
     activeChordRef.current = pad.activeChord;
   }, [pad.activeChord]);
 
-  const { refreshVoicing, retuneDrone, setDrone, setShimmerFeedback } = pad;
+  const { refreshVoicing, releaseChord, retuneDrone, setDrone, setDucked, setShimmerFeedback } =
+    pad;
 
   // Sync drone audio to the URL-driven drone state. Ordered BEFORE the re-voicing
   // effect below so the drone's desired state is set first — the chord drops its
@@ -405,6 +406,27 @@ function WorshipPadPage() {
       window.removeEventListener('pointercancel', handleUp);
     };
   }, [releaseIfIdle]);
+
+  // A lost keyup (alt-tab, app switch, screen lock) would otherwise leave a
+  // chord sounding or the volume stuck ducked. Reset hold state, release, and
+  // un-duck when the window loses focus or visibility.
+  useEffect(() => {
+    const handleBlur = () => {
+      keysDownRef.current.clear();
+      pointerHeldRef.current = false;
+      setDucked(false);
+      releaseChord();
+    };
+    const handleVisibility = () => {
+      if (document.hidden) handleBlur();
+    };
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [releaseChord, setDucked]);
 
   // Keyboard shortcuts (play + release)
   useEffect(() => {

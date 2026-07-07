@@ -224,6 +224,13 @@ function midiToFreq(midi: number): number {
   return Tone.Frequency(midi, 'midi').toFrequency();
 }
 
+// Tone.gainToDb(0) is -Infinity, which can NaN-poison a Web Audio ramp and mute
+// the bus permanently; floor the gain at an inaudible epsilon so volume=0 stays
+// finite (~-80 dB) instead.
+function volumeToDb(gain: number): number {
+  return Tone.gainToDb(Math.max(gain, 1e-4));
+}
+
 // Main hook
 export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPadReturn {
   const synthRef = useRef<Tone.PolySynth | null>(null);
@@ -284,7 +291,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       preDelay: 0.05,
       wet: settings.reverbWet,
     });
-    const volume = new Tone.Volume(Tone.gainToDb(settings.volume));
+    const volume = new Tone.Volume(volumeToDb(settings.volume));
     // Brick-wall limiter catches voice-stacking peaks before the destination
     // would hard-clip them into audible distortion on rapid chord presses.
     const limiter = new Tone.Limiter(-1);
@@ -475,7 +482,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
   // Push volume changes (skip while ducked; duck logic owns the ramp)
   useEffect(() => {
     if (volumeRef.current && !duckedRef.current) {
-      volumeRef.current.volume.rampTo(Tone.gainToDb(settings.volume), VOLUME_RAMP_SECONDS);
+      volumeRef.current.volume.rampTo(volumeToDb(settings.volume), VOLUME_RAMP_SECONDS);
     }
   }, [settings.volume]);
 
@@ -499,7 +506,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
 
   const setDucked = useCallback((on: boolean) => {
     if (!volumeRef.current) return;
-    const target = on ? DUCK_DB : Tone.gainToDb(settingsRef.current.volume);
+    const target = on ? DUCK_DB : volumeToDb(settingsRef.current.volume);
     volumeRef.current.volume.rampTo(target, DUCK_RAMP_SECONDS);
     duckedRef.current = on;
     setDuckedState(on);
@@ -700,8 +707,10 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
         if (Tone.getContext().state !== 'running') {
           await Tone.start();
         }
-        // Intent may have flipped while waiting for the user gesture.
-        if (!droneDesiredRef.current) return;
+        // Re-read the synth after the await: the component may have unmounted
+        // (disposing it) or the intent flipped while waiting for the user gesture.
+        const activeDrone = droneSynthRef.current;
+        if (!activeDrone || !droneDesiredRef.current) return;
         if (droneNotesRef.current.length > 0) return;
         const droneVolume = droneVolumeRef.current;
         if (droneVolume) {
@@ -710,7 +719,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
           droneVolume.volume.setValueAtTime(DRONE_BASELINE_DB, now);
         }
         const note = computeRootMidi(droneRootPcRef.current, droneOctaveRef.current);
-        drone.triggerAttack([midiToFreq(note)]);
+        activeDrone.triggerAttack([midiToFreq(note)]);
         droneNotesRef.current = [note];
         setIsReady(true);
       })();
