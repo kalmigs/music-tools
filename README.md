@@ -23,7 +23,7 @@ A collection of browser-based music utilities.
 ### Prerequisites
 
 - Node.js 24+
-- pnpm 9+
+- pnpm 10+
 
 ### Installation
 

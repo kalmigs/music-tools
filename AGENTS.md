@@ -12,7 +12,7 @@ This file provides guidance to AI coding agents (Claude Code, and any tool that 
 - `pnpm test`: Vitest (watch). `pnpm test -- --run` for one-shot (used in CI). Tests live under `tests/` mirroring the `src/` path (e.g. `tests/lib/tempo-utils.spec.ts` for `src/lib/tempo-utils.ts`) and must match `tests/**/*.{spec,test}.ts`. Keep `src/` free of test files.
 - Run a single test: `pnpm test --run tests/hooks/use-drum-engine.spec.ts` (add `-t "name"` to filter by test name). Omit the `--` here: `pnpm test -- --run <path>` silently drops the path filter and runs the whole suite.
 
-Toolchain is pinned to Node 24+ and pnpm 9+ (`.node-version`, `packageManager`). `vite` is overridden to `rolldown-vite` in `pnpm.overrides`.
+Toolchain is pinned to Node 24+ and pnpm 10+ (`.node-version` is 24.14.0, `packageManager` is pnpm@10.33.0). `vite` is overridden to `rolldown-vite` in `pnpm.overrides`.
 
 ## Architecture
 
