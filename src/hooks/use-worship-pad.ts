@@ -530,6 +530,28 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
     [],
   );
 
+  // Release whatever the pad and shimmer are sounding right now. Leaves the note
+  // refs untouched so callers can either clear them or attack a new voicing next.
+  const releaseCurrentVoices = useCallback(() => {
+    const synth = synthRef.current;
+    const shimmerSynth = shimmerSynthRef.current;
+    const previous = currentNotesRef.current;
+    const previousShimmer = currentShimmerNotesRef.current;
+    if (synth && previous.length > 0) {
+      synth.triggerRelease(previous.map(midiToFreq));
+    }
+    if (shimmerSynth && previousShimmer.length > 0) {
+      shimmerSynth.triggerRelease(previousShimmer.map(midiToFreq));
+    }
+  }, []);
+
+  const clearActiveChord = useCallback(() => {
+    currentNotesRef.current = [];
+    currentShimmerNotesRef.current = [];
+    activeChordRef.current = null;
+    setActiveChord(null);
+  }, []);
+
   const playChord = useCallback<UseWorshipPadReturn['playChord']>(
     async (chord, variant, octave, subRoot, shimmer) => {
       if (Tone.getContext().state !== 'running') {
@@ -540,7 +562,6 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       if (!synth) return;
 
       const previous = currentNotesRef.current;
-      const previousShimmer = currentShimmerNotesRef.current;
       const previousChord = activeChordRef.current;
 
       // When latched, re-pressing the active chord toggles it off.
@@ -550,23 +571,12 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
         previousChord.name === chord.name &&
         previous.length > 0
       ) {
-        synth.triggerRelease(previous.map(midiToFreq));
-        if (shimmerSynth && previousShimmer.length > 0) {
-          shimmerSynth.triggerRelease(previousShimmer.map(midiToFreq));
-        }
-        currentNotesRef.current = [];
-        currentShimmerNotesRef.current = [];
-        activeChordRef.current = null;
-        setActiveChord(null);
+        releaseCurrentVoices();
+        clearActiveChord();
         return;
       }
 
-      if (previous.length > 0) {
-        synth.triggerRelease(previous.map(midiToFreq));
-      }
-      if (shimmerSynth && previousShimmer.length > 0) {
-        shimmerSynth.triggerRelease(previousShimmer.map(midiToFreq));
-      }
+      releaseCurrentVoices();
 
       const { midi, shimmerMidi } = computeVoicing(chord, variant, octave, subRoot, shimmer);
       synth.triggerAttack(midi.map(midiToFreq));
@@ -595,7 +605,7 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       setActiveChord(chord);
       setIsReady(true);
     },
-    [computeVoicing],
+    [clearActiveChord, computeVoicing, releaseCurrentVoices],
   );
 
   const refreshVoicing = useCallback<UseWorshipPadReturn['refreshVoicing']>(
@@ -657,43 +667,19 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
 
   const releaseChord = useCallback(() => {
     if (latchedRef.current) return;
-    const synth = synthRef.current;
-    const shimmerSynth = shimmerSynthRef.current;
-    const previous = currentNotesRef.current;
-    const previousShimmer = currentShimmerNotesRef.current;
-    if (synth && previous.length > 0) {
-      synth.triggerRelease(previous.map(midiToFreq));
-    }
-    if (shimmerSynth && previousShimmer.length > 0) {
-      shimmerSynth.triggerRelease(previousShimmer.map(midiToFreq));
-    }
-    currentNotesRef.current = [];
-    currentShimmerNotesRef.current = [];
-    activeChordRef.current = null;
-    setActiveChord(null);
-  }, []);
+    releaseCurrentVoices();
+    clearActiveChord();
+  }, [clearActiveChord, releaseCurrentVoices]);
 
   const toggleLatch = useCallback(() => {
     const next = !latchedRef.current;
     latchedRef.current = next;
     setLatched(next);
     if (!next) {
-      const synth = synthRef.current;
-      const shimmerSynth = shimmerSynthRef.current;
-      const previous = currentNotesRef.current;
-      const previousShimmer = currentShimmerNotesRef.current;
-      if (synth && previous.length > 0) {
-        synth.triggerRelease(previous.map(midiToFreq));
-      }
-      if (shimmerSynth && previousShimmer.length > 0) {
-        shimmerSynth.triggerRelease(previousShimmer.map(midiToFreq));
-      }
-      currentNotesRef.current = [];
-      currentShimmerNotesRef.current = [];
-      activeChordRef.current = null;
-      setActiveChord(null);
+      releaseCurrentVoices();
+      clearActiveChord();
     }
-  }, []);
+  }, [clearActiveChord, releaseCurrentVoices]);
 
   const setDrone = useCallback<UseWorshipPadReturn['setDrone']>((on, rootPc, octave) => {
     droneDesiredRef.current = on;
