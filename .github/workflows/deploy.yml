@@ -43,7 +43,7 @@ jobs:
         run: pnpm format:check
 
       - name: Run tests
-        run: pnpm test --run
+        run: pnpm test -- --run
 
       - name: Build
         env:
