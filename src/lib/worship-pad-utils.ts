@@ -80,7 +80,7 @@ export function chordToMidi(
   variant: Variant,
   subRoot = false,
 ): number[] {
-  const rootMidiNum = chord.rootPc + 12 * (octave + 1);
+  const rootMidiNum = rootMidi(chord.rootPc, octave);
   let notes: number[];
   if (variant === 'sus4') {
     notes = [rootMidiNum, rootMidiNum + SUS4_INTERVALS[0], rootMidiNum + SUS4_INTERVALS[1]];
