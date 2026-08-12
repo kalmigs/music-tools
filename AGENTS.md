@@ -10,7 +10,7 @@ This file provides guidance to AI coding agents (Claude Code, and any tool that 
 - `pnpm lint`: ESLint (flat config, `eslint.config.js`).
 - `pnpm format` / `pnpm format:check`: Prettier.
 - `pnpm test`: Vitest (watch). `pnpm test -- --run` for one-shot (used in CI). Tests live under `tests/` mirroring the `src/` path (e.g. `tests/lib/tempo-utils.spec.ts` for `src/lib/tempo-utils.ts`) and must match `tests/**/*.{spec,test}.ts`. Keep `src/` free of test files.
-- Run a single test: `pnpm test -- --run tests/hooks/use-drum-engine.spec.ts` (add `-t "name"` to filter by test name).
+- Run a single test: `pnpm test --run tests/hooks/use-drum-engine.spec.ts` (add `-t "name"` to filter by test name). Omit the `--` here: `pnpm test -- --run <path>` silently drops the path filter and runs the whole suite.
 
 Toolchain is pinned to Node 24+ and pnpm 9+ (`.node-version`, `packageManager`). `vite` is overridden to `rolldown-vite` in `pnpm.overrides`.
 
@@ -58,4 +58,4 @@ Global reference docs in `docs/` (consult when relevant):
 
 ## CI
 
-`.github/workflows/deploy.yml` runs on push to `main`: `pnpm audit --audit-level=high` → `pnpm test -- --run` → `pnpm build` (with the jsDelivr sample origin env) → strip `dist/drum-looper` → deploy to GitHub Pages.
+`.github/workflows/deploy.yml` runs on push to `main`: `pnpm audit --audit-level=high` → `pnpm lint` → `pnpm format:check` → `pnpm test -- --run` → `pnpm build` (with the jsDelivr sample origin env) → strip `dist/drum-looper` → deploy to GitHub Pages. `configure-pages` sets `enablement: true`, so a Pages source reset self-heals instead of failing the job.
