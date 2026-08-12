@@ -39,6 +39,7 @@ import {
 import { useRegisterShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useMetronome, DEFAULT_BPM, MAX_BPM, MIN_BPM } from '@/hooks/use-metronome';
 import { useTapTempo } from '@/hooks/use-tap-tempo';
+import { isTypingTarget } from '@/lib/keyboard-utils';
 import {
   formatTime,
   getAccentBeats,
@@ -604,11 +605,7 @@ function MetronomePage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input, textarea, or contenteditable
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return;
-      }
+      if (isTypingTarget(e.target)) return;
 
       if (e.code === 'Space') {
         e.preventDefault();

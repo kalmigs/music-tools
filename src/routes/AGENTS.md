@@ -116,6 +116,7 @@ Then:
 
    ```tsx
    import { useRegisterShortcuts } from '@/hooks/use-keyboard-shortcuts';
+   import { isTypingTarget } from '@/lib/keyboard-utils';
 
    useRegisterShortcuts([
      { key: 'Space', label: 'Start / Stop' },
@@ -124,10 +125,9 @@ Then:
 
    useEffect(() => {
      const handleKeyDown = (e: KeyboardEvent) => {
-       const target = e.target as HTMLElement;
-       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-         return;
-       }
+       // Shared guard: text inputs, textarea, select, contenteditable.
+       // Sliders and checkboxes are not typing, so shortcuts still fire there.
+       if (isTypingTarget(e.target)) return;
        if (e.code === 'Space') {
          e.preventDefault();
          // handle action

@@ -18,6 +18,7 @@ import {
   drumProjectSchema,
 } from '@/lib/drum-looper-types';
 import { decodeProjectFromState, encodeProjectToState } from '@/lib/drum-looper-url-state';
+import { isTypingTarget } from '@/lib/keyboard-utils';
 import { cn } from '@/lib/utils';
 
 // Constants
@@ -313,18 +314,7 @@ function DrumLooperPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      const isTextInput =
-        target.tagName === 'INPUT' &&
-        (target as HTMLInputElement).type !== 'range' &&
-        (target as HTMLInputElement).type !== 'checkbox' &&
-        (target as HTMLInputElement).type !== 'radio';
-      const isBlockedElement =
-        isTextInput || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA';
-
-      if (isBlockedElement || target.isContentEditable) {
-        return;
-      }
+      if (isTypingTarget(event.target)) return;
 
       if (event.code === 'Space') {
         event.preventDefault();

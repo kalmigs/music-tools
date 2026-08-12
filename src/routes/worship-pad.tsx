@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { useRegisterShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useWorshipPad, type PadSettings } from '@/hooks/use-worship-pad';
+import { isTypingTarget } from '@/lib/keyboard-utils';
 import { cn } from '@/lib/utils';
 import {
   OCTAVE_MAX,
@@ -438,18 +439,10 @@ function WorshipPadPage() {
 
   // Keyboard shortcuts (play + release)
   useEffect(() => {
-    const isTyping = (target: EventTarget | null) => {
-      const el = target as HTMLElement | null;
-      return (
-        !!el &&
-        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true)
-      );
-    };
-
     const keysDown = keysDownRef.current;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) return;
+      if (isTypingTarget(e.target)) return;
 
       if (e.key >= '1' && e.key <= '7') {
         const index = Number(e.key) - 1;
@@ -499,7 +492,7 @@ function WorshipPadPage() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) return;
+      if (isTypingTarget(e.target)) return;
 
       if (e.key >= '1' && e.key <= '7') {
         const index = Number(e.key) - 1;
