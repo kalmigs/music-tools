@@ -9,25 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WorshipPadRouteImport } from './routes/worship-pad'
-import { Route as TunerRouteImport } from './routes/tuner'
-import { Route as MetronomeRouteImport } from './routes/metronome'
-import { Route as DrumLooperRouteImport } from './routes/drum-looper'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DrumLooperRouteImport } from './routes/drum-looper'
+import { Route as MetronomeRouteImport } from './routes/metronome'
+import { Route as TunerRouteImport } from './routes/tuner'
+import { Route as WorshipPadRouteImport } from './routes/worship-pad'
 
-const WorshipPadRoute = WorshipPadRouteImport.update({
-  id: '/worship-pad',
-  path: '/worship-pad',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TunerRoute = TunerRouteImport.update({
-  id: '/tuner',
-  path: '/tuner',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MetronomeRoute = MetronomeRouteImport.update({
-  id: '/metronome',
-  path: '/metronome',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DrumLooperRoute = DrumLooperRouteImport.update({
@@ -35,9 +25,19 @@ const DrumLooperRoute = DrumLooperRouteImport.update({
   path: '/drum-looper',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const MetronomeRoute = MetronomeRouteImport.update({
+  id: '/metronome',
+  path: '/metronome',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TunerRoute = TunerRouteImport.update({
+  id: '/tuner',
+  path: '/tuner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorshipPadRoute = WorshipPadRouteImport.update({
+  id: '/worship-pad',
+  path: '/worship-pad',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -69,12 +69,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/drum-looper' | '/metronome' | '/tuner' | '/worship-pad'
   id:
-    | '__root__'
-    | '/'
-    | '/drum-looper'
-    | '/metronome'
-    | '/tuner'
-    | '/worship-pad'
+    '__root__' | '/' | '/drum-looper' | '/metronome' | '/tuner' | '/worship-pad'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,25 +82,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/worship-pad': {
-      id: '/worship-pad'
-      path: '/worship-pad'
-      fullPath: '/worship-pad'
-      preLoaderRoute: typeof WorshipPadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tuner': {
-      id: '/tuner'
-      path: '/tuner'
-      fullPath: '/tuner'
-      preLoaderRoute: typeof TunerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/metronome': {
-      id: '/metronome'
-      path: '/metronome'
-      fullPath: '/metronome'
-      preLoaderRoute: typeof MetronomeRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/drum-looper': {
@@ -115,11 +96,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DrumLooperRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/metronome': {
+      id: '/metronome'
+      path: '/metronome'
+      fullPath: '/metronome'
+      preLoaderRoute: typeof MetronomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tuner': {
+      id: '/tuner'
+      path: '/tuner'
+      fullPath: '/tuner'
+      preLoaderRoute: typeof TunerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/worship-pad': {
+      id: '/worship-pad'
+      path: '/worship-pad'
+      fullPath: '/worship-pad'
+      preLoaderRoute: typeof WorshipPadRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

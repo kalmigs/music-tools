@@ -214,61 +214,67 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
 
   const startInterval = useCallback(
     (intervalBpm: number, audioContext: AudioContext) => {
-      stopInterval();
+      // Named declaration so the speed-trainer restart below can recurse without
+      // referencing the useCallback binding before it is initialized.
+      function run(nextBpm: number) {
+        stopInterval();
 
-      const tick = () => {
-        const beat = currentBeatRef.current;
-        const clickType = getClickType(beat);
-        createClickSound(audioContext, clickType);
+        const tick = () => {
+          const beat = currentBeatRef.current;
+          const clickType = getClickType(beat);
+          createClickSound(audioContext, clickType);
 
-        setCurrentBeat(beat);
-        onBeatChange?.(beat);
+          setCurrentBeat(beat);
+          onBeatChange?.(beat);
 
-        // Increment for next beat (use ref to get latest beatsPerMeasure)
-        currentBeatRef.current = (beat + 1) % beatsPerMeasureRef.current;
+          // Increment for next beat (use ref to get latest beatsPerMeasure)
+          currentBeatRef.current = (beat + 1) % beatsPerMeasureRef.current;
 
-        // Speed trainer logic - check after completing a measure
-        if (speedTrainer?.enabled && currentBeatRef.current === 0) {
-          const st = speedTrainerRef.current;
-          st.currentRepeat++;
+          // Speed trainer logic - check after completing a measure
+          if (speedTrainer?.enabled && currentBeatRef.current === 0) {
+            const st = speedTrainerRef.current;
+            st.currentRepeat++;
 
-          if (st.currentRepeat > speedTrainer.repeatsPerLoop) {
-            st.currentRepeat = 1;
-            st.currentLoop++;
+            if (st.currentRepeat > speedTrainer.repeatsPerLoop) {
+              st.currentRepeat = 1;
+              st.currentLoop++;
 
-            // Check for completion (loops > 0 means finite, 0 means infinite)
-            if (speedTrainer.loops > 0 && st.currentLoop > speedTrainer.loops) {
-              // Complete
-              stopInterval();
-              if (timerIntervalRef.current) {
-                clearInterval(timerIntervalRef.current);
-                timerIntervalRef.current = null;
+              // Check for completion (loops > 0 means finite, 0 means infinite)
+              if (speedTrainer.loops > 0 && st.currentLoop > speedTrainer.loops) {
+                // Complete
+                stopInterval();
+                if (timerIntervalRef.current) {
+                  clearInterval(timerIntervalRef.current);
+                  timerIntervalRef.current = null;
+                }
+                setIsPlaying(false);
+                setCurrentBeat(-1);
+                currentBeatRef.current = 0;
+                setElapsedSeconds(0);
+                setSpeedTrainerState(null);
+                onComplete?.();
+                return;
               }
-              setIsPlaying(false);
-              setCurrentBeat(-1);
-              currentBeatRef.current = 0;
-              setElapsedSeconds(0);
-              setSpeedTrainerState(null);
-              onComplete?.();
-              return;
+
+              // Increase BPM for next loop
+              st.currentBpm = clampBpm(st.currentBpm + speedTrainer.bpmIncrement);
+
+              // Restart interval with new BPM
+              run(st.currentBpm);
             }
 
-            // Increase BPM for next loop
-            st.currentBpm = clampBpm(st.currentBpm + speedTrainer.bpmIncrement);
-
-            // Restart interval with new BPM
-            startInterval(st.currentBpm, audioContext);
+            setSpeedTrainerState({ ...st });
           }
+        };
 
-          setSpeedTrainerState({ ...st });
-        }
-      };
+        const interval = 60000 / nextBpm;
+        intervalRef.current = window.setInterval(tick, interval);
 
-      const interval = 60000 / intervalBpm;
-      intervalRef.current = window.setInterval(tick, interval);
+        // Execute first tick immediately
+        tick();
+      }
 
-      // Execute first tick immediately
-      tick();
+      run(intervalBpm);
     },
     [getClickType, onBeatChange, onComplete, speedTrainer, stopInterval],
   );
