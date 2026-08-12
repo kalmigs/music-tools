@@ -6,12 +6,12 @@ Theme colors are defined in `src/index.css` using OKLCH color space.
 
 ```css
 :root {
-  --primary: oklch(0.55 0.22 25);  /* Red */
-  --background: oklch(1 0 0);      /* White */
+  --primary: oklch(0.55 0.22 25); /* Red */
+  --background: oklch(1 0 0); /* White */
 }
 
 .dark {
-  --primary: oklch(0.65 0.22 25);  /* Brighter red for dark */
+  --primary: oklch(0.65 0.22 25); /* Brighter red for dark */
   --background: oklch(0.145 0.005 15);
 }
 ```
@@ -41,9 +41,9 @@ Use semantic color classes that respect the theme:
 
 ```tsx
 // ✅ Good - uses CSS variables
-className="bg-primary text-primary-foreground"
-className="bg-sidebar text-sidebar-foreground"
+<div className="bg-primary text-primary-foreground" />;
+<aside className="bg-sidebar text-sidebar-foreground" />;
 
 // ❌ Avoid - hardcoded colors
-className="bg-red-500 text-white"
+<div className="bg-red-500 text-white" />;
 ```

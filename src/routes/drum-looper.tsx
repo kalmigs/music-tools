@@ -801,10 +801,7 @@ function DrumLooperPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              className="gap-2"
-              onClick={() => void toggle()}
-            >
+            <Button className="gap-2" onClick={() => void toggle()}>
               {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
               {isBuffering && !isPlaying ? 'Loading Samples...' : isPlaying ? 'Stop' : 'Play'}
             </Button>

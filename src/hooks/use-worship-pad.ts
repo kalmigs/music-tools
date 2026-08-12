@@ -143,11 +143,7 @@ const SHIMMER_REVERB_RAMP_SECONDS = 0.3;
 const SHIMMER_REVERB_DELAY_SECONDS = 0.12;
 
 // Helpers for synth construction
-function createPadSynth(
-  preset: PresetConfig,
-  attack: number,
-  release: number,
-): Tone.PolySynth {
+function createPadSynth(preset: PresetConfig, attack: number, release: number): Tone.PolySynth {
   const envelope: EnvelopeShape = preset.envelope ?? {
     attack,
     decay: 0.5,
@@ -260,7 +256,9 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
   const latchedRef = useRef(true);
   const duckedRef = useRef(false);
   const settingsRef = useRef(settings);
-  const currentSynthClassRef = useRef<PresetConfig['synthClass']>(PRESETS[settings.preset].synthClass);
+  const currentSynthClassRef = useRef<PresetConfig['synthClass']>(
+    PRESETS[settings.preset].synthClass,
+  );
   const pendingDisposalsRef = useRef<Array<{ timer: number; synth: Tone.PolySynth }>>([]);
 
   const [isReady, setIsReady] = useState(false);
@@ -411,7 +409,11 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
       synthRef.current?.set({ envelope: envSource });
     }
     droneSynthRef.current?.set({
-      envelope: droneEnvelope({ ...settings, attack: envSource.attack, release: envSource.release }),
+      envelope: droneEnvelope({
+        ...settings,
+        attack: envSource.attack,
+        release: envSource.release,
+      }),
     });
     shimmerSynthRef.current?.set({
       envelope: shimmerEnvelope({

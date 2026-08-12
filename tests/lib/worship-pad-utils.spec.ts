@@ -7,15 +7,7 @@ describe('getDiatonicChords', () => {
     const chords = getDiatonicChords('C', 'major');
     expect(chords.map(c => c.name)).toEqual(['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim']);
     expect(chords.map(c => c.roman)).toEqual(['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']);
-    expect(chords.map(c => c.quality)).toEqual([
-      'maj',
-      'min',
-      'min',
-      'maj',
-      'maj',
-      'min',
-      'dim',
-    ]);
+    expect(chords.map(c => c.quality)).toEqual(['maj', 'min', 'min', 'maj', 'maj', 'min', 'dim']);
   });
 
   it('builds natural minor diatonic chords in A', () => {

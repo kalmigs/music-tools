@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
-import {
-  Layers,
-  Minus,
-  Plus,
-  Settings,
-  Sparkles,
-  Stars,
-  VolumeX,
-  Waves,
-  Wind,
-} from 'lucide-react';
+import { Layers, Minus, Plus, Settings, Sparkles, Stars, VolumeX, Waves, Wind } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,12 +18,7 @@ import { useRegisterShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useWorshipPad, type PadSettings } from '@/hooks/use-worship-pad';
 import { isTypingTarget } from '@/lib/keyboard-utils';
 import { cn } from '@/lib/utils';
-import {
-  OCTAVE_MAX,
-  OCTAVE_MIN,
-  searchSchema,
-  type SearchParams,
-} from '@/lib/worship-pad-search';
+import { OCTAVE_MAX, OCTAVE_MIN, searchSchema, type SearchParams } from '@/lib/worship-pad-search';
 import {
   KEYS,
   MODES,

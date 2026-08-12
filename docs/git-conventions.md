@@ -43,10 +43,13 @@ pnpm format      # Prettier
 Title: Same as commit message format
 
 Body:
+
 ```markdown
 ## Summary
+
 - Brief description of changes
 
 ## Test plan
+
 - How to verify the changes work
 ```
