@@ -41,6 +41,9 @@ const QUALITY_INTERVALS: Record<ChordQuality, readonly [number, number]> = {
 const SUS4_INTERVALS: readonly [number, number] = [5, 7];
 const ADD9_SEMITONES = 14;
 
+// Shimmer doubles the voicing two octaves up.
+export const SHIMMER_SEMITONES = 24;
+
 // Helpers
 function keyToPc(key: Key): number {
   const idx = NOTE_STRINGS.indexOf(key);
@@ -99,4 +102,20 @@ export function chordToMidi(
 
 export function rootMidi(rootPc: number, octave: number): number {
   return rootPc + 12 * (octave + 1);
+}
+
+// Derive the notes to sound for a chord. Drops the sub-root when the drone is
+// (desired to be) covering it, so bass level stays constant whether Sub, Drone,
+// or both are on.
+export function computeVoicingNotes(
+  chord: Chord,
+  variant: Variant,
+  octave: number,
+  subRoot: boolean,
+  shimmer: boolean,
+  droneCoversSubRoot: boolean,
+): { midi: number[]; shimmerMidi: number[] } {
+  const midi = chordToMidi(chord, octave, variant, subRoot && !droneCoversSubRoot);
+  const shimmerMidi = shimmer ? midi.map(n => n + SHIMMER_SEMITONES) : [];
+  return { midi, shimmerMidi };
 }

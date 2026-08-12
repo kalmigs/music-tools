@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { chordToMidi, getDiatonicChords, rootMidi } from '@/lib/worship-pad-utils';
+import {
+  SHIMMER_SEMITONES,
+  chordToMidi,
+  computeVoicingNotes,
+  getDiatonicChords,
+  rootMidi,
+} from '@/lib/worship-pad-utils';
 
 describe('getDiatonicChords', () => {
   it('builds major diatonic chords in C', () => {
@@ -58,5 +64,48 @@ describe('rootMidi', () => {
   it('maps pitch class + octave to MIDI number (C4 = 60)', () => {
     expect(rootMidi(0, 4)).toBe(60);
     expect(rootMidi(9, 4)).toBe(69);
+  });
+});
+
+describe('computeVoicingNotes', () => {
+  const c = getDiatonicChords('C', 'major')[0];
+
+  it('returns the plain chord with no shimmer and no sub-root', () => {
+    expect(computeVoicingNotes(c, 'triad', 3, false, false, false)).toEqual({
+      midi: [48, 52, 55],
+      shimmerMidi: [],
+    });
+  });
+
+  it('adds the sub-root when Sub is on and the drone is off', () => {
+    expect(computeVoicingNotes(c, 'triad', 3, true, false, false).midi).toEqual([36, 48, 52, 55]);
+  });
+
+  // The bass level should stay constant whether Sub, Drone, or both are on.
+  it('drops the sub-root when the drone already covers it', () => {
+    expect(computeVoicingNotes(c, 'triad', 3, true, false, true).midi).toEqual([48, 52, 55]);
+  });
+
+  it('leaves the chord alone when the drone is on but Sub is off', () => {
+    expect(computeVoicingNotes(c, 'triad', 3, false, false, true).midi).toEqual([48, 52, 55]);
+  });
+
+  it('doubles every sounded note two octaves up for shimmer', () => {
+    const { midi, shimmerMidi } = computeVoicingNotes(c, 'triad', 3, false, true, false);
+
+    expect(shimmerMidi).toEqual(midi.map(n => n + SHIMMER_SEMITONES));
+    expect(shimmerMidi).toEqual([72, 76, 79]);
+  });
+
+  it('shimmers the sub-root too when it is part of the voicing', () => {
+    const { midi, shimmerMidi } = computeVoicingNotes(c, 'triad', 3, true, true, false);
+
+    expect(midi).toEqual([36, 48, 52, 55]);
+    expect(shimmerMidi).toEqual([60, 72, 76, 79]);
+  });
+
+  it('carries the variant through to the voicing', () => {
+    expect(computeVoicingNotes(c, 'sus4', 3, false, false, false).midi).toEqual([48, 53, 55]);
+    expect(computeVoicingNotes(c, 'add9', 3, false, false, false).midi).toEqual([48, 52, 55, 62]);
   });
 });

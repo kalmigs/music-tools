@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Types
-interface SpeedTrainerConfig {
+export interface SpeedTrainerConfig {
   bpmIncrement: number;
   enabled: boolean;
   loops: number;
   repeatsPerLoop: number;
 }
 
-interface SpeedTrainerState {
+export interface SpeedTrainerState {
   currentBpm: number;
   currentLoop: number;
   currentRepeat: number;
@@ -54,6 +54,44 @@ const MIN_BPM = 20;
 // Helper functions
 function clampBpm(value: number): number {
   return Math.max(MIN_BPM, Math.min(MAX_BPM, value));
+}
+
+/**
+ * Advance the speed trainer by one completed measure.
+ *
+ * - `hold`: still inside the current loop, only the repeat counter moved.
+ * - `advance`: the loop finished, so BPM steps up and the interval restarts.
+ * - `complete`: the configured loop count is exhausted. `loops: 0` means run forever.
+ */
+export type SpeedTrainerAdvance =
+  | { kind: 'hold'; state: SpeedTrainerState }
+  | { kind: 'advance'; state: SpeedTrainerState }
+  | { kind: 'complete' };
+
+export function advanceSpeedTrainer(
+  state: SpeedTrainerState,
+  config: SpeedTrainerConfig,
+): SpeedTrainerAdvance {
+  const currentRepeat = state.currentRepeat + 1;
+
+  if (currentRepeat <= config.repeatsPerLoop) {
+    return { kind: 'hold', state: { ...state, currentRepeat } };
+  }
+
+  const currentLoop = state.currentLoop + 1;
+
+  if (config.loops > 0 && currentLoop > config.loops) {
+    return { kind: 'complete' };
+  }
+
+  return {
+    kind: 'advance',
+    state: {
+      currentBpm: clampBpm(state.currentBpm + config.bpmIncrement),
+      currentLoop,
+      currentRepeat: 1,
+    },
+  };
 }
 
 type ClickType = 'accent' | 'downbeat' | 'normal' | 'countIn';
@@ -232,38 +270,32 @@ export function useMetronome(options: UseMetronomeOptions = {}): UseMetronomeRet
 
           // Speed trainer logic - check after completing a measure
           if (speedTrainer?.enabled && currentBeatRef.current === 0) {
-            const st = speedTrainerRef.current;
-            st.currentRepeat++;
+            const advance = advanceSpeedTrainer(speedTrainerRef.current, speedTrainer);
 
-            if (st.currentRepeat > speedTrainer.repeatsPerLoop) {
-              st.currentRepeat = 1;
-              st.currentLoop++;
-
-              // Check for completion (loops > 0 means finite, 0 means infinite)
-              if (speedTrainer.loops > 0 && st.currentLoop > speedTrainer.loops) {
-                // Complete
-                stopInterval();
-                if (timerIntervalRef.current) {
-                  clearInterval(timerIntervalRef.current);
-                  timerIntervalRef.current = null;
-                }
-                setIsPlaying(false);
-                setCurrentBeat(-1);
-                currentBeatRef.current = 0;
-                setElapsedSeconds(0);
-                setSpeedTrainerState(null);
-                onComplete?.();
-                return;
+            if (advance.kind === 'complete') {
+              stopInterval();
+              if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
               }
-
-              // Increase BPM for next loop
-              st.currentBpm = clampBpm(st.currentBpm + speedTrainer.bpmIncrement);
-
-              // Restart interval with new BPM
-              run(st.currentBpm);
+              setIsPlaying(false);
+              setCurrentBeat(-1);
+              currentBeatRef.current = 0;
+              setElapsedSeconds(0);
+              setSpeedTrainerState(null);
+              onComplete?.();
+              return;
             }
 
-            setSpeedTrainerState({ ...st });
+            speedTrainerRef.current = advance.state;
+
+            // Restart the interval at the stepped-up BPM before publishing state,
+            // matching the previous ordering.
+            if (advance.kind === 'advance') {
+              run(advance.state.currentBpm);
+            }
+
+            setSpeedTrainerState({ ...advance.state });
           }
         };
 

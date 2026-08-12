@@ -5,7 +5,7 @@ import {
   type Chord,
   type SynthPreset,
   type Variant,
-  chordToMidi,
+  computeVoicingNotes,
   rootMidi as computeRootMidi,
 } from '@/lib/worship-pad-utils';
 
@@ -138,7 +138,6 @@ const DRONE_DUCK_DB = -12;
 const DRONE_DUCK_ATTACK_SECONDS = 0.3;
 const DRONE_DUCK_RELEASE_SECONDS = 1.5;
 const SHIMMER_VOICE_DB = -14;
-const SHIMMER_SEMITONES = 24;
 const SHIMMER_REVERB_RAMP_SECONDS = 0.3;
 const SHIMMER_REVERB_DELAY_SECONDS = 0.12;
 
@@ -523,12 +522,8 @@ export function useWorshipPad({ settings }: UseWorshipPadOptions): UseWorshipPad
   // than droneNotesRef, so a mid-chord drone toggle re-voices correctly even before
   // the drone's note has been (re)attached asynchronously.
   const computeVoicing = useCallback(
-    (chord: Chord, variant: Variant, octave: number, subRoot: boolean, shimmer: boolean) => {
-      const droneCoversSubRoot = droneDesiredRef.current;
-      const midi = chordToMidi(chord, octave, variant, subRoot && !droneCoversSubRoot);
-      const shimmerMidi = shimmer ? midi.map(n => n + SHIMMER_SEMITONES) : [];
-      return { midi, shimmerMidi };
-    },
+    (chord: Chord, variant: Variant, octave: number, subRoot: boolean, shimmer: boolean) =>
+      computeVoicingNotes(chord, variant, octave, subRoot, shimmer, droneDesiredRef.current),
     [],
   );
 
