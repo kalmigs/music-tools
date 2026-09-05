@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lock-screen audio spike</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 1rem;
+        max-width: 40rem;
+        line-height: 1.4;
+      }
+      button {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        margin: 0.25rem 0;
+        width: 100%;
+      }
+      .row {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .row button {
+        width: auto;
+        flex: 1;
+      }
+      pre {
+        background: #f3f3f3;
+        padding: 0.5rem;
+        overflow-x: auto;
+        font-size: 0.8rem;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Lock-screen audio spike</h1>
+    <p>
+      Throwaway page. It tests whether a binaural-beats session survives the iPhone lock screen.
+      Delete it once the verdict is recorded.
+    </p>
+    <ol>
+      <li>Tap one Start button. You should hear a soft tone pulsing once per second.</li>
+      <li>Lock the phone. Wait about 90 seconds. Listen: does the pulse keep going?</li>
+      <li>
+        Unlock, tap Stop, then Dump log. A pass is the audio clock advancing about as far as the
+        wall clock across the lock. A fail is any <code>suspended</code> or
+        <code>interrupted</code> state, or the audio clock stalling.
+      </li>
+      <li>Repeat for each strategy. Clear the log between runs.</li>
+    </ol>
+
+    <button id="start-live">A: Live graph + MediaSession + silent audio element</button>
+    <button id="start-rendered">B: Rendered loop played by an audio element</button>
+    <button id="start-bare">C: Live graph only (control)</button>
+
+    <div class="row">
+      <button id="stop">Stop</button>
+      <button id="dump">Dump log</button>
+      <button id="clear">Clear log</button>
+    </div>
+
+    <pre id="status">idle</pre>
+    <pre id="log"></pre>
+
+    <audio id="anchor" loop playsinline></audio>
+    <audio id="rendered" loop playsinline></audio>
+
+    <script>
+      const LOG_KEY = 'spike-lock-audio-log';
+      const SAMPLE_RATE = 44100;
+
+      const statusEl = document.getElementById('status');
+      const logEl = document.getElementById('log');
+      const anchorEl = document.getElementById('anchor');
+      const renderedEl = document.getElementById('rendered');
+
+      let ctx = null;
+      let strategy = null;
+      let ticker = null;
+
+      function readLog() {
+        try {
+          return JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+        } catch {
+          return [];
+        }
+      }
+
+      function appendLog(entry) {
+        const entries = readLog();
+        entries.push(entry);
+        localStorage.setItem(LOG_KEY, JSON.stringify(entries));
+      }
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      // 440 Hz tone whose gain is switched by a 0.5 Hz square LFO: one second on,
+      // one second off. Everything lives inside the audio graph so the pulse keeps
+      // its cadence even when JavaScript timers are throttled behind the lock screen.
+      function buildPulse(audioContext, target) {
+        const osc = audioContext.createOscillator();
+        osc.frequency.value = 440;
+
+        const pulse = audioContext.createGain();
+        pulse.gain.value = 0;
+
+        const lfo = audioContext.createOscillator();
+        lfo.type = 'square';
+        lfo.frequency.value = 0.5;
+
+        const depth = audioContext.createGain();
+        depth.gain.value = 0.5;
+
+        const offset = audioContext.createConstantSource();
+        offset.offset.value = 0.5;
+
+        const master = audioContext.createGain();
+        master.gain.value = 0.15;
+
+        lfo.connect(depth).connect(pulse.gain);
+        offset.connect(pulse.gain);
+        osc.connect(pulse).connect(master).connect(target);
+
+        osc.start();
+        lfo.start();
+        offset.start();
+      }
+
+      // Minimal 16-bit PCM WAV encoder so rendered buffers can be played by an
+      // <audio> element without any library.
+      function encodeWav(buffer) {
+        const channels = buffer.numberOfChannels;
+        const frames = buffer.length;
+        const bytesPerSample = 2;
+        const dataBytes = frames * channels * bytesPerSample;
+        const out = new ArrayBuffer(44 + dataBytes);
+        const view = new DataView(out);
+
+        const writeString = (offset, text) => {
+          for (let i = 0; i < text.length; i += 1) {
+            view.setUint8(offset + i, text.charCodeAt(i));
+          }
+        };
+
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + dataBytes, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, channels, true);
+        view.setUint32(24, buffer.sampleRate, true);
+        view.setUint32(28, buffer.sampleRate * channels * bytesPerSample, true);
+        view.setUint16(32, channels * bytesPerSample, true);
+        view.setUint16(34, 16, true);
+        writeString(36, 'data');
+        view.setUint32(40, dataBytes, true);
+
+        let cursor = 44;
+        for (let frame = 0; frame < frames; frame += 1) {
+          for (let channel = 0; channel < channels; channel += 1) {
+            const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[frame]));
+            view.setInt16(cursor, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+            cursor += 2;
+          }
+        }
+
+        return new Blob([out], { type: 'audio/wav' });
+      }
+
+      function silentWavUrl(seconds) {
+        const offline = new OfflineAudioContext(1, SAMPLE_RATE * seconds, SAMPLE_RATE);
+        return offline.startRendering().then(buffer => URL.createObjectURL(encodeWav(buffer)));
+      }
+
+      function renderedPulseUrl(seconds) {
+        const offline = new OfflineAudioContext(2, SAMPLE_RATE * seconds, SAMPLE_RATE);
+        buildPulse(offline, offline.destination);
+        return offline.startRendering().then(buffer => URL.createObjectURL(encodeWav(buffer)));
+      }
+
+      function installMediaSession() {
+        if (!('mediaSession' in navigator)) {
+          appendLog({ t: Date.now(), event: 'mediaSession unavailable' });
+          return;
+        }
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Lock-screen audio spike',
+          artist: 'music-tools',
+        });
+        navigator.mediaSession.playbackState = 'playing';
+        for (const action of ['play', 'pause', 'stop']) {
+          try {
+            navigator.mediaSession.setActionHandler(action, () => {
+              appendLog({ t: Date.now(), event: `mediaSession ${action}` });
+            });
+          } catch {
+            // Unsupported action on this browser; ignore.
+          }
+        }
+      }
+
+      function startTicker() {
+        ticker = window.setInterval(() => {
+          appendLog({
+            t: Date.now(),
+            ct: ctx ? Number(ctx.currentTime.toFixed(2)) : null,
+            state: ctx ? ctx.state : null,
+            strategy,
+            hidden: document.hidden,
+            anchor: anchorEl.paused ? 'paused' : 'playing',
+            rendered: renderedEl.paused ? 'paused' : 'playing',
+          });
+        }, 1000);
+      }
+
+      async function start(next) {
+        await stop();
+        strategy = next;
+        appendLog({ t: Date.now(), event: `start ${next}` });
+
+        if (next === 'rendered') {
+          renderedEl.src = await renderedPulseUrl(4);
+          await renderedEl.play();
+          installMediaSession();
+        } else {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          ctx = new AudioContextClass();
+          ctx.onstatechange = () => appendLog({ t: Date.now(), event: `state ${ctx.state}` });
+          if (ctx.state !== 'running') await ctx.resume();
+          buildPulse(ctx, ctx.destination);
+
+          if (next === 'live') {
+            anchorEl.src = await silentWavUrl(1);
+            await anchorEl.play();
+            installMediaSession();
+          }
+        }
+
+        startTicker();
+        setStatus(`running: ${next}`);
+      }
+
+      async function stop() {
+        if (ticker) window.clearInterval(ticker);
+        ticker = null;
+        if (strategy) appendLog({ t: Date.now(), event: `stop ${strategy}` });
+        strategy = null;
+
+        anchorEl.pause();
+        renderedEl.pause();
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+
+        if (ctx) {
+          await ctx.close().catch(() => undefined);
+          ctx = null;
+        }
+        setStatus('idle');
+      }
+
+      function dump() {
+        const entries = readLog();
+        const ticks = entries.filter(entry => typeof entry.t === 'number' && 'ct' in entry);
+
+        let worst = { gap: 0, audioAdvance: 0 };
+        for (let i = 1; i < ticks.length; i += 1) {
+          const gap = (ticks[i].t - ticks[i - 1].t) / 1000;
+          if (gap > worst.gap) {
+            const audioAdvance =
+              ticks[i].ct !== null && ticks[i - 1].ct !== null
+                ? ticks[i].ct - ticks[i - 1].ct
+                : NaN;
+            worst = { gap, audioAdvance };
+          }
+        }
+
+        const badStates = entries.filter(
+          entry => entry.state === 'suspended' || entry.state === 'interrupted',
+        ).length;
+
+        const summary = [
+          `entries: ${entries.length}`,
+          `largest wall-clock gap: ${worst.gap.toFixed(1)} s`,
+          `audio clock advanced across that gap: ${
+            Number.isNaN(worst.audioAdvance)
+              ? 'n/a (rendered mode)'
+              : `${worst.audioAdvance.toFixed(1)} s`
+          }`,
+          `suspended/interrupted ticks: ${badStates}`,
+          '',
+        ].join('\n');
+
+        logEl.textContent = summary + entries.map(entry => JSON.stringify(entry)).join('\n');
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        appendLog({ t: Date.now(), event: document.hidden ? 'hidden' : 'visible' });
+      });
+
+      document.getElementById('start-live').onclick = () => start('live');
+      document.getElementById('start-rendered').onclick = () => start('rendered');
+      document.getElementById('start-bare').onclick = () => start('bare');
+      document.getElementById('stop').onclick = () => stop();
+      document.getElementById('dump').onclick = dump;
+      document.getElementById('clear').onclick = () => {
+        localStorage.removeItem(LOG_KEY);
+        logEl.textContent = '';
+      };
+    </script>
+  </body>
+</html>
