@@ -8,6 +8,7 @@ A collection of browser-based music utilities.
 - **Tuner** - Tune instruments with microphone input using browser-only pitch detection (inspired by [qiuxiang/tuner](https://github.com/qiuxiang/tuner))
 - **Drum Looper** - Create section-based drum sequences, load kits from `public/drum-looper`, and share projects via URL
 - **Worship Pad** - Ambient synth pad with diatonic chord buttons, drone, swell/duck, and reverb
+- **Binaural Beats** - Binaural or isochronic tones over a pink/brown noise bed, with presets and a sleep timer that fades out
 
 ## Tech Stack
 

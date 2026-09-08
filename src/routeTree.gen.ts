@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BinauralBeatsRouteImport } from './routes/binaural-beats'
 import { Route as DrumLooperRouteImport } from './routes/drum-looper'
 import { Route as MetronomeRouteImport } from './routes/metronome'
 import { Route as TunerRouteImport } from './routes/tuner'
@@ -18,6 +19,11 @@ import { Route as WorshipPadRouteImport } from './routes/worship-pad'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BinauralBeatsRoute = BinauralBeatsRouteImport.update({
+  id: '/binaural-beats',
+  path: '/binaural-beats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DrumLooperRoute = DrumLooperRouteImport.update({
@@ -43,6 +49,7 @@ const WorshipPadRoute = WorshipPadRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/binaural-beats': typeof BinauralBeatsRoute
   '/drum-looper': typeof DrumLooperRoute
   '/metronome': typeof MetronomeRoute
   '/tuner': typeof TunerRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/binaural-beats': typeof BinauralBeatsRoute
   '/drum-looper': typeof DrumLooperRoute
   '/metronome': typeof MetronomeRoute
   '/tuner': typeof TunerRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/binaural-beats': typeof BinauralBeatsRoute
   '/drum-looper': typeof DrumLooperRoute
   '/metronome': typeof MetronomeRoute
   '/tuner': typeof TunerRoute
@@ -65,15 +74,34 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/drum-looper' | '/metronome' | '/tuner' | '/worship-pad'
+  fullPaths:
+    | '/'
+    | '/binaural-beats'
+    | '/drum-looper'
+    | '/metronome'
+    | '/tuner'
+    | '/worship-pad'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/drum-looper' | '/metronome' | '/tuner' | '/worship-pad'
+  to:
+    | '/'
+    | '/binaural-beats'
+    | '/drum-looper'
+    | '/metronome'
+    | '/tuner'
+    | '/worship-pad'
   id:
-    '__root__' | '/' | '/drum-looper' | '/metronome' | '/tuner' | '/worship-pad'
+    | '__root__'
+    | '/'
+    | '/binaural-beats'
+    | '/drum-looper'
+    | '/metronome'
+    | '/tuner'
+    | '/worship-pad'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BinauralBeatsRoute: typeof BinauralBeatsRoute
   DrumLooperRoute: typeof DrumLooperRoute
   MetronomeRoute: typeof MetronomeRoute
   TunerRoute: typeof TunerRoute
@@ -87,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/binaural-beats': {
+      id: '/binaural-beats'
+      path: '/binaural-beats'
+      fullPath: '/binaural-beats'
+      preLoaderRoute: typeof BinauralBeatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/drum-looper': {
@@ -122,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BinauralBeatsRoute: BinauralBeatsRoute,
   DrumLooperRoute: DrumLooperRoute,
   MetronomeRoute: MetronomeRoute,
   TunerRoute: TunerRoute,

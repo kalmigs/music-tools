@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { ArrowRight, Drum, Gauge, Sparkles, Timer } from 'lucide-react';
+import { ArrowRight, Drum, Gauge, Headphones, Sparkles, Timer } from 'lucide-react';
 
 // Types
 interface ToolCardProps {
@@ -63,6 +63,12 @@ function HomePage() {
           href="/worship-pad"
           icon={Sparkles}
           title="Worship Pad"
+        />
+        <ToolCard
+          description="Steady tones with a pink or brown noise bed, and a sleep timer"
+          href="/binaural-beats"
+          icon={Headphones}
+          title="Binaural Beats"
         />
       </div>
     </div>

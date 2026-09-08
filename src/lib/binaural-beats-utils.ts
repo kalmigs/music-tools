@@ -27,6 +27,13 @@ export interface NoiseBufferOptions {
   edgeFadeSamples?: number;
 }
 
+export interface TransportEnvelope {
+  /** True once the timer has run past its fade-out and playback should stop. */
+  complete: boolean;
+  /** Gain in [0, 1], multiplied with the user's volume before it reaches the element. */
+  gain: number;
+}
+
 // Constants
 export const MODES = ['binaural', 'isochronic'] as const;
 export const NOISE_TYPES = ['none', 'pink', 'brown'] as const;
@@ -118,6 +125,44 @@ export function computeFadeOutSchedule(
     fadeStartSeconds: Math.max(0, timerDurationSeconds - fadeSeconds),
     fadeEndSeconds: timerDurationSeconds,
   };
+}
+
+/**
+ * The play/stop envelope, evaluated from wall-clock elapsed time rather than scheduled on
+ * an audio clock. The rendered loop is steady-state and repeats forever, so neither fade
+ * can live in the buffer; both ride on the media element's volume instead.
+ *
+ * iOS throttles timers to roughly 2 s while the screen is locked, so the ticker driving
+ * this fires late and unevenly. Every call recomputes the gain from `elapsedSeconds`
+ * instead of stepping a counter, which keeps a coarse tick from drifting the ramp.
+ *
+ * A `timerSeconds` of 0 means no timer: fade in, then hold at 1 indefinitely.
+ */
+export function computeTransportGain(
+  elapsedSeconds: number,
+  timerSeconds: number,
+  fadeInSeconds: number = FADE_IN_SECONDS,
+  fadeOutSeconds: number = FADE_OUT_SECONDS,
+): TransportEnvelope {
+  const fadeIn = fadeInSeconds > 0 ? Math.min(1, Math.max(0, elapsedSeconds / fadeInSeconds)) : 1;
+
+  if (timerSeconds <= 0) {
+    return { complete: false, gain: fadeIn };
+  }
+
+  const { fadeEndSeconds, fadeStartSeconds } = computeFadeOutSchedule(timerSeconds, fadeOutSeconds);
+
+  if (elapsedSeconds >= fadeEndSeconds) {
+    return { complete: true, gain: 0 };
+  }
+
+  const rampSeconds = fadeEndSeconds - fadeStartSeconds;
+  const fadeOut =
+    rampSeconds > 0 && elapsedSeconds > fadeStartSeconds
+      ? (fadeEndSeconds - elapsedSeconds) / rampSeconds
+      : 1;
+
+  return { complete: false, gain: Math.min(fadeIn, fadeOut) };
 }
 
 function finalizeNoise(samples: Float32Array, edgeFadeSamples: number): Float32Array {

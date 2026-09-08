@@ -9,6 +9,8 @@ import {
   clampCarrier,
   classifyBand,
   computeFadeOutSchedule,
+  computeTransportGain,
+  FADE_IN_SECONDS,
   FADE_OUT_SECONDS,
   findMatchingPreset,
   generateBrownNoiseSamples,
@@ -173,5 +175,58 @@ describe('noise generators', () => {
     expect(tiny.length).toBe(8);
     expect(tiny[0]).toBeCloseTo(0, 10);
     expect(tiny[7]).toBeCloseTo(0, 10);
+  });
+});
+
+describe('computeTransportGain', () => {
+  const TIMER = 15 * 60;
+
+  it('ramps in from silence over the fade-in window', () => {
+    expect(computeTransportGain(0, 0).gain).toBe(0);
+    expect(computeTransportGain(FADE_IN_SECONDS / 2, 0).gain).toBeCloseTo(0.5);
+    expect(computeTransportGain(FADE_IN_SECONDS, 0).gain).toBe(1);
+  });
+
+  it('holds at full gain forever when no timer is set', () => {
+    expect(computeTransportGain(60, 0)).toEqual({ complete: false, gain: 1 });
+    expect(computeTransportGain(60 * 60 * 5, 0)).toEqual({ complete: false, gain: 1 });
+  });
+
+  it('holds at full gain until the fade-out begins', () => {
+    const { fadeStartSeconds } = computeFadeOutSchedule(TIMER);
+    expect(computeTransportGain(fadeStartSeconds - 1, TIMER).gain).toBe(1);
+    expect(computeTransportGain(fadeStartSeconds, TIMER).gain).toBe(1);
+  });
+
+  it('ramps down across the fade-out window', () => {
+    const { fadeStartSeconds } = computeFadeOutSchedule(TIMER);
+    const midpoint = fadeStartSeconds + FADE_OUT_SECONDS / 2;
+    expect(computeTransportGain(midpoint, TIMER).gain).toBeCloseTo(0.5);
+  });
+
+  it('reports complete at silence, and stays complete past the end', () => {
+    expect(computeTransportGain(TIMER, TIMER)).toEqual({ complete: true, gain: 0 });
+    expect(computeTransportGain(TIMER + 120, TIMER)).toEqual({ complete: true, gain: 0 });
+  });
+
+  it('is a pure function of elapsed time, so a late tick lands on the same gain', () => {
+    const { fadeStartSeconds } = computeFadeOutSchedule(TIMER);
+    const late = fadeStartSeconds + 21.7;
+
+    // A 2 s throttled tick under lock skips the intermediate calls; the value it does
+    // land on has to match what an uninterrupted ticker would have produced.
+    expect(computeTransportGain(late, TIMER).gain).toBeCloseTo(
+      computeTransportGain(late, TIMER).gain,
+    );
+    expect(computeTransportGain(late, TIMER).gain).toBeCloseTo(
+      (FADE_OUT_SECONDS - 21.7) / FADE_OUT_SECONDS,
+    );
+  });
+
+  it('lets the fade-out win when a timer is shorter than the fade-in', () => {
+    // Not reachable from the UI (the shortest timer is 15 min) but the envelope should
+    // not exceed either ramp.
+    const gain = computeTransportGain(1, 2, 4, 2).gain;
+    expect(gain).toBeLessThanOrEqual(0.5);
   });
 });

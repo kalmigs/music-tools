@@ -1,4 +1,4 @@
-import { Drum, Gauge, Home, Sparkles, Timer, type LucideIcon } from 'lucide-react';
+import { Drum, Gauge, Headphones, Home, Sparkles, Timer, type LucideIcon } from 'lucide-react';
 
 // Types
 export interface NavGroup {
@@ -52,6 +52,12 @@ export const navItems: NavGroup[] = [
         href: '/worship-pad',
         icon: Sparkles,
         title: 'Worship Pad',
+      },
+      {
+        description: 'Steady tones and a noise bed for focus or sleep',
+        href: '/binaural-beats',
+        icon: Headphones,
+        title: 'Binaural Beats',
       },
     ],
   },
