@@ -9,6 +9,7 @@ import {
   clampCarrier,
   classifyBand,
   computeFadeOutSchedule,
+  computeTimerRebase,
   computeTransportGain,
   FADE_IN_SECONDS,
   FADE_OUT_SECONDS,
@@ -223,10 +224,50 @@ describe('computeTransportGain', () => {
     );
   });
 
+  it('never returns a gain above 1 or below 0', () => {
+    for (const elapsed of [-5, 0, 1, TIMER - 1, TIMER, TIMER * 2]) {
+      const { gain } = computeTransportGain(elapsed, TIMER);
+      expect(gain).toBeGreaterThanOrEqual(0);
+      expect(gain).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('lets the fade-out win when a timer is shorter than the fade-in', () => {
     // Not reachable from the UI (the shortest timer is 15 min) but the envelope should
     // not exceed either ramp.
     const gain = computeTransportGain(1, 2, 4, 2).gain;
     expect(gain).toBeLessThanOrEqual(0.5);
+  });
+});
+
+describe('computeTimerRebase', () => {
+  const HOUR = 60 * 60;
+
+  it('leaves the clock alone when the new timer still has more than a fade left', () => {
+    expect(computeTimerRebase(60, HOUR)).toBeNull();
+    expect(computeTimerRebase(0, 15 * 60)).toBeNull();
+  });
+
+  it('leaves the clock alone when the timer is switched off', () => {
+    expect(computeTimerRebase(1000, 0)).toBeNull();
+  });
+
+  it('pulls the clock back to leave exactly one fade-out when the timer is cut short', () => {
+    // 60 min timer at 1000 s elapsed, shortened to 15 min: already 100 s past the end.
+    const rebased = computeTimerRebase(1000, 15 * 60);
+    expect(rebased).toBe(15 * 60 - FADE_OUT_SECONDS);
+  });
+
+  it('produces an elapsed that starts the fade rather than completing the session', () => {
+    const timer = 15 * 60;
+    const rebased = computeTimerRebase(1000, timer);
+    const envelope = computeTransportGain(rebased as number, timer);
+
+    expect(envelope.complete).toBe(false);
+    expect(envelope.gain).toBeCloseTo(1);
+  });
+
+  it('does not return a negative elapsed for a timer shorter than the fade', () => {
+    expect(computeTimerRebase(100, 10, 30)).toBe(0);
   });
 });

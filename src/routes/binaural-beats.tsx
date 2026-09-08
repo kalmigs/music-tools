@@ -163,6 +163,10 @@ function BinauralBeatsPage() {
 
       if (e.code === 'Space') {
         e.preventDefault();
+        // Holding Space would otherwise toggle at the key-repeat rate, tearing down and
+        // restarting the media element each time. Arrow repeat is left alone: holding one
+        // to sweep the beat frequency is useful.
+        if (e.repeat) return;
         toggle();
         return;
       }

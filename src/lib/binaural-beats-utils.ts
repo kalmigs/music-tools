@@ -165,6 +165,28 @@ export function computeTransportGain(
   return { complete: false, gain: Math.min(fadeIn, fadeOut) };
 }
 
+/**
+ * Where to move the elapsed clock to when the timer is changed mid-session, or null to
+ * leave it alone.
+ *
+ * Shortening a timer past the elapsed time would otherwise complete the session on the
+ * very next tick, cutting the audio at full volume on the one tool whose fade-out is the
+ * whole point. Pulling the clock back to leave one fade's worth of room converts that into
+ * an immediate fade-out instead.
+ */
+export function computeTimerRebase(
+  elapsedSeconds: number,
+  timerSeconds: number,
+  fadeOutSeconds: number = FADE_OUT_SECONDS,
+): number | null {
+  if (timerSeconds <= 0) return null;
+
+  const minimumRemaining = Math.min(fadeOutSeconds, timerSeconds);
+  if (timerSeconds - elapsedSeconds >= minimumRemaining) return null;
+
+  return Math.max(0, timerSeconds - minimumRemaining);
+}
+
 function finalizeNoise(samples: Float32Array, edgeFadeSamples: number): Float32Array {
   let peak = 0;
   for (let i = 0; i < samples.length; i += 1) {

@@ -16,6 +16,7 @@ import {
   DEFAULT_NOISE_LEVEL,
   DEFAULT_TIMER_MINUTES,
   DEFAULT_VOLUME,
+  computeTimerRebase,
   computeTransportGain,
 } from '@/lib/binaural-beats-utils';
 
@@ -51,6 +52,8 @@ const RENDER_DEBOUNCE_MS = 300;
  */
 const TICK_MS = 250;
 
+const MEDIA_SESSION_ACTIONS: MediaSessionAction[] = ['play', 'pause', 'stop'];
+
 // Helper functions
 function installMediaSession(onPlay: () => void, onPause: () => void): void {
   if (!('mediaSession' in navigator)) return;
@@ -76,8 +79,23 @@ function installMediaSession(onPlay: () => void, onPause: () => void): void {
   }
 }
 
+/**
+ * Tear the now-playing entry down completely. Leaving the handlers bound would keep the
+ * OS controls live after a stop or unmount, firing into a hook whose element is gone.
+ */
 function clearMediaSession(): void {
-  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+  if (!('mediaSession' in navigator)) return;
+
+  navigator.mediaSession.playbackState = 'none';
+  navigator.mediaSession.metadata = null;
+
+  for (const action of MEDIA_SESSION_ACTIONS) {
+    try {
+      navigator.mediaSession.setActionHandler(action, null);
+    } catch {
+      // Safari rejects actions it does not implement; the rest still clear.
+    }
+  }
 }
 
 // Main hook
@@ -127,6 +145,14 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   /** Renders the settings as of the latest commit; see the effect that assigns it. */
   const renderNowRef = useRef<() => void>(() => undefined);
 
+  /**
+   * Set when Play is pressed before a source exists. The timer and the fade-in are then
+   * rebased to the moment sound actually starts, since a cold start spends seconds
+   * rendering and loading ~5 MB and would otherwise burn the fade-in on silence and end
+   * the session short by the same amount.
+   */
+  const deferredStartRef = useRef(false);
+
   // The volume slider and the transport fades both want the element's single volume
   // scalar, so they are held apart and multiplied on every write. A drag mid-fade then
   // cannot clobber the ramp, and the ramp cannot clobber the drag.
@@ -146,7 +172,15 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   }, [onComplete]);
 
   useEffect(() => {
-    timerSecondsRef.current = timerMinutes * 60;
+    const nextSeconds = timerMinutes * 60;
+    const previousSeconds = timerSecondsRef.current;
+    timerSecondsRef.current = nextSeconds;
+
+    if (!wantsPlaybackRef.current || nextSeconds <= 0 || nextSeconds === previousSeconds) return;
+
+    const elapsed = (Date.now() - startedAtRef.current) / 1000;
+    const rebased = computeTimerRebase(elapsed, nextSeconds);
+    if (rebased !== null) startedAtRef.current = Date.now() - rebased * 1000;
   }, [timerMinutes]);
 
   // Declared before the render effect so the element exists by the time it runs.
@@ -198,6 +232,7 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   const stop = useCallback(() => {
     clearTicker();
     wantsPlaybackRef.current = false;
+    deferredStartRef.current = false;
     transportGainRef.current = 0;
     detachSourceListenersRef.current?.();
 
@@ -268,10 +303,13 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     startTicker();
 
     if (element.src) {
+      deferredStartRef.current = false;
       element.currentTime = 0;
       startElement();
       return;
     }
+
+    deferredStartRef.current = true;
 
     // No source yet: either the first render is still in flight, or it failed and left
     // nothing behind. Kicking a render here is what keeps a failure from stranding the
@@ -321,9 +359,18 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
       function onLoaded() {
         detach();
         media.currentTime = resumeAt;
+
         // Live intent, not the value captured when the swap started: the user may have
         // pressed Stop while the new source was loading.
-        if (wantsPlaybackRef.current) startElement();
+        if (!wantsPlaybackRef.current) return;
+
+        if (deferredStartRef.current) {
+          deferredStartRef.current = false;
+          startedAtRef.current = Date.now();
+          setElapsedSeconds(0);
+        }
+
+        startElement();
       }
 
       function onFailed() {
