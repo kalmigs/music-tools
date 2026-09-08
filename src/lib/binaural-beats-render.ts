@@ -1,5 +1,6 @@
 import {
   type BinauralMode,
+  type NoiseBufferOptions,
   type NoiseType,
   generateBrownNoiseSamples,
   generatePinkNoiseSamples,
@@ -43,6 +44,12 @@ export const RENDER_SAMPLE_RATE = 44100;
  */
 const TONE_GAIN = 0.45;
 const NOISE_MAX_GAIN = 0.45;
+
+/**
+ * Overlap used to wrap the noise bed onto itself. Half a second is long enough that the
+ * blend is inaudible on broadband noise and short enough to stay cheap.
+ */
+const NOISE_CROSSFADE_SAMPLES = 22050;
 
 // Helper functions
 /**
@@ -119,6 +126,34 @@ export function encodeWavBytes(buffer: PcmSource): ArrayBuffer {
 
 export function encodeWav(buffer: PcmSource): Blob {
   return new Blob([encodeWavBytes(buffer)], { type: 'audio/wav' });
+}
+
+/**
+ * Noise that wraps onto itself without a seam and without a gap.
+ *
+ * The generators' own edge fade solves the seam by ramping both ends to silence, which is
+ * right for a buffer played once but wrong here: this bed loops every `LOOP_SECONDS`, so
+ * the two ramps meet and become a recurring dropout, around 120 of them an hour on a sleep
+ * session. Instead the noise is generated `crossfadeSamples` longer than needed with the
+ * edge fade off, and the surplus tail is blended back over the head. Sample `length - 1`
+ * then runs into sample 0 as an ordinary step, because sample 0 is the continuation of the
+ * source stream that produced it.
+ */
+export function generateLoopableNoise(
+  generate: (length: number, options?: NoiseBufferOptions) => Float32Array,
+  length: number,
+  crossfadeSamples: number = NOISE_CROSSFADE_SAMPLES,
+): Float32Array {
+  const overlap = Math.max(0, Math.min(crossfadeSamples, Math.floor(length / 2)));
+  const raw = generate(length + overlap, { edgeFadeSamples: 0 });
+  const out = raw.slice(0, length);
+
+  for (let i = 0; i < overlap; i += 1) {
+    const t = i / overlap;
+    out[i] = raw[i] * t + raw[length + i] * (1 - t);
+  }
+
+  return out;
 }
 
 /** Left ear gets the carrier, right ear the carrier plus the beat, hard-panned. */
@@ -200,8 +235,8 @@ function connectIsochronicTone(
 
 /**
  * Independent noise per channel. Decorrelated noise sits outside the head rather than
- * centred in it, and the generators already fade their own edges so the bed crosses the
- * loop seam silently while the tones run straight through it.
+ * centred in it, and each channel is wrapped onto itself by `generateLoopableNoise` so the
+ * bed crosses the loop seam continuously rather than dipping to silence there.
  */
 function connectNoise(
   context: OfflineAudioContext,
@@ -216,8 +251,8 @@ function connectNoise(
   const buffer = context.createBuffer(2, length, context.sampleRate);
   // `set` rather than `copyToChannel`: the generators return a plain Float32Array, whose
   // buffer type does not narrow to the `Float32Array<ArrayBuffer>` copyToChannel wants.
-  buffer.getChannelData(0).set(generate(length));
-  buffer.getChannelData(1).set(generate(length));
+  buffer.getChannelData(0).set(generateLoopableNoise(generate, length));
+  buffer.getChannelData(1).set(generateLoopableNoise(generate, length));
 
   const source = context.createBufferSource();
   source.buffer = buffer;

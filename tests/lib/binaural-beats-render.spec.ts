@@ -5,9 +5,15 @@ import {
   LOOP_SECONDS,
   carryLoopPosition,
   encodeWavBytes,
+  generateLoopableNoise,
   snapToLoopGrid,
 } from '@/lib/binaural-beats-render';
-import { BEAT_MIN, PRESETS } from '@/lib/binaural-beats-utils';
+import {
+  BEAT_MIN,
+  PRESETS,
+  generateBrownNoiseSamples,
+  generatePinkNoiseSamples,
+} from '@/lib/binaural-beats-utils';
 
 function stubBuffer(channels: Float32Array[], sampleRate = 44100): PcmSource {
   return {
@@ -75,6 +81,69 @@ describe('carryLoopPosition', () => {
     expect(carryLoopPosition(-1, 30)).toBe(0);
     expect(carryLoopPosition(Number.NaN, 30)).toBe(0);
     expect(carryLoopPosition(10, 0)).toBe(0);
+  });
+});
+
+describe('generateLoopableNoise', () => {
+  const LENGTH = 20000;
+  const OVERLAP = 2000;
+
+  function maxStep(samples: Float32Array): number {
+    let max = 0;
+    for (let i = 1; i < samples.length; i += 1) {
+      max = Math.max(max, Math.abs(samples[i] - samples[i - 1]));
+    }
+    return max;
+  }
+
+  for (const [name, generate] of [
+    ['pink', generatePinkNoiseSamples],
+    ['brown', generateBrownNoiseSamples],
+  ] as const) {
+    describe(name, () => {
+      it('returns exactly the requested length', () => {
+        expect(generateLoopableNoise(generate, LENGTH, OVERLAP).length).toBe(LENGTH);
+      });
+
+      it('does not fade its edges to silence, unlike the raw generator', () => {
+        const looped = generateLoopableNoise(generate, LENGTH, OVERLAP);
+        const raw = generate(LENGTH);
+
+        // The raw generator ramps both ends to zero; that is the dropout this replaces.
+        expect(Math.abs(raw[0])).toBeCloseTo(0, 6);
+        expect(Math.abs(raw[LENGTH - 1])).toBeCloseTo(0, 6);
+
+        // Both ends, not the louder of the two: a fade at either end is a dropout.
+        expect(Math.abs(looped[0])).toBeGreaterThan(0.001);
+        expect(Math.abs(looped[LENGTH - 1])).toBeGreaterThan(0.001);
+      });
+
+      it('wraps continuously, so the loop point is an ordinary step', () => {
+        const looped = generateLoopableNoise(generate, LENGTH, OVERLAP);
+        const seamStep = Math.abs(looped[0] - looped[LENGTH - 1]);
+
+        // Sample 0 is the source stream's continuation of sample length-1, so crossing the
+        // loop point must cost no more than the largest step found anywhere inside it.
+        expect(seamStep).toBeLessThanOrEqual(maxStep(looped));
+      });
+
+      it('stays within the normalized range', () => {
+        for (const sample of generateLoopableNoise(generate, LENGTH, OVERLAP)) {
+          expect(Math.abs(sample)).toBeLessThanOrEqual(1);
+        }
+      });
+    });
+  }
+
+  it('caps the overlap at half the buffer', () => {
+    const tiny = generateLoopableNoise(generatePinkNoiseSamples, 100, 10_000);
+    expect(tiny.length).toBe(100);
+  });
+
+  it('is a plain unfaded buffer when the overlap is zero', () => {
+    const none = generateLoopableNoise(generatePinkNoiseSamples, 1000, 0);
+    expect(none.length).toBe(1000);
+    expect(Math.abs(none[0])).toBeGreaterThan(0);
   });
 });
 

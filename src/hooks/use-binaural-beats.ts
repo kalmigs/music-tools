@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { carryLoopPosition, renderSessionUrl } from '@/lib/binaural-beats-render';
+import {
+  type RenderSettings,
+  carryLoopPosition,
+  renderSessionUrl,
+} from '@/lib/binaural-beats-render';
 import {
   type BinauralMode,
   type NoiseType,
@@ -108,7 +112,20 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   const tickerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const renderGenerationRef = useRef(0);
-  const pendingPlayRef = useRef(false);
+  const isRenderingRef = useRef(false);
+
+  /**
+   * Live transport intent, as opposed to whether the element happens to be playing right
+   * now. A source swap starts loading before it can start playing, and the user can press
+   * Stop in between, so the deferred start reads this rather than a captured flag.
+   */
+  const wantsPlaybackRef = useRef(false);
+
+  /** Removes whatever load listeners the current source has armed. */
+  const detachSourceListenersRef = useRef<(() => void) | null>(null);
+
+  /** Renders the settings as of the latest commit; see the effect that assigns it. */
+  const renderNowRef = useRef<() => void>(() => undefined);
 
   // The volume slider and the transport fades both want the element's single volume
   // scalar, so they are held apart and multiplied on every write. A drag mid-fade then
@@ -146,9 +163,12 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     elementRef.current = element;
 
     return () => {
+      detachSourceListenersRef.current?.();
+      wantsPlaybackRef.current = false;
       element.pause();
       element.remove();
       elementRef.current = null;
+      clearMediaSession();
       if (sourceUrlRef.current) {
         URL.revokeObjectURL(sourceUrlRef.current);
         sourceUrlRef.current = null;
@@ -177,8 +197,9 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
 
   const stop = useCallback(() => {
     clearTicker();
-    pendingPlayRef.current = false;
+    wantsPlaybackRef.current = false;
     transportGainRef.current = 0;
+    detachSourceListenersRef.current?.();
 
     const element = elementRef.current;
     if (element) {
@@ -191,6 +212,31 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     setElapsedSeconds(0);
     clearMediaSession();
   }, [applyVolume, clearTicker]);
+
+  /**
+   * Start the element and install the lock-screen controls. Every path that begins
+   * playback goes through here, including the deferred one, so a session started while the
+   * first render was still in flight is not left without a MediaSession.
+   */
+  const startElement = useCallback(() => {
+    const element = elementRef.current;
+    if (!element) return;
+
+    void element
+      .play()
+      .then(() =>
+        // Indirected through refs: the handlers outlive this closure, and reading the
+        // transport callbacks directly would reference them from inside their own
+        // initializers.
+        installMediaSession(
+          () => playRef.current(),
+          () => stopRef.current(),
+        ),
+      )
+      // A rejection here is usually iOS refusing a play that is no longer tied to a tap.
+      // Reset rather than swallow it, or the transport reports playback over silence.
+      .catch(() => stopRef.current());
+  }, []);
 
   const startTicker = useCallback(() => {
     clearTicker();
@@ -215,30 +261,23 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
 
     startedAtRef.current = Date.now();
     transportGainRef.current = 0;
+    wantsPlaybackRef.current = true;
     applyVolume();
     setElapsedSeconds(0);
     setIsPlaying(true);
     startTicker();
 
-    // The first render may still be in flight on a cold load; the swap picks this up.
-    if (!element.src) {
-      pendingPlayRef.current = true;
+    if (element.src) {
+      element.currentTime = 0;
+      startElement();
       return;
     }
 
-    element.currentTime = 0;
-    void element
-      .play()
-      .then(() =>
-        // Indirected through refs: the handlers outlive this closure, and reading them
-        // directly would reference `play` from inside its own initializer.
-        installMediaSession(
-          () => playRef.current(),
-          () => stopRef.current(),
-        ),
-      )
-      .catch(() => stop());
-  }, [applyVolume, startTicker, stop]);
+    // No source yet: either the first render is still in flight, or it failed and left
+    // nothing behind. Kicking a render here is what keeps a failure from stranding the
+    // transport, since the render effect only re-runs when the settings change.
+    if (!isRenderingRef.current) renderNowRef.current();
+  }, [applyVolume, startElement, startTicker]);
 
   useEffect(() => {
     playRef.current = play;
@@ -250,42 +289,68 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     else play();
   }, [isPlaying, play, stop]);
 
-  const swapSource = useCallback((url: string) => {
-    const element = elementRef.current;
-    if (!element) {
-      URL.revokeObjectURL(url);
-      return;
-    }
-
-    const previousUrl = sourceUrlRef.current;
-    const resumeAt = carryLoopPosition(element.currentTime);
-    const shouldPlay = !element.paused || pendingPlayRef.current;
-
-    sourceUrlRef.current = url;
-    element.src = url;
-    element.load();
-
-    const restore = () => {
-      element.currentTime = resumeAt;
-      if (shouldPlay) {
-        pendingPlayRef.current = false;
-        void element.play().catch(() => undefined);
+  const swapSource = useCallback(
+    (url: string) => {
+      const element = elementRef.current;
+      if (!element) {
+        URL.revokeObjectURL(url);
+        return;
       }
-    };
 
-    if (element.readyState >= HTMLMediaElement.HAVE_METADATA) restore();
-    else element.addEventListener('loadedmetadata', restore, { once: true });
+      // A swap that overtakes an earlier one would otherwise leave the earlier listener
+      // armed, and it would then rewind the new source to the old position.
+      detachSourceListenersRef.current?.();
 
-    if (previousUrl) URL.revokeObjectURL(previousUrl);
-  }, []);
+      // Captured after the guard so the deferred handlers below keep the narrowed type.
+      const media = element;
+      const previousUrl = sourceUrlRef.current;
+      const resumeAt = carryLoopPosition(media.currentTime);
 
-  useEffect(() => {
-    const generation = renderGenerationRef.current + 1;
-    renderGenerationRef.current = generation;
+      sourceUrlRef.current = url;
+      media.src = url;
+      // `load()` resets readyState to HAVE_NOTHING, so metadata is always awaited rather
+      // than sometimes already present.
+      media.load();
 
-    const timeout = window.setTimeout(() => {
+      const detach = () => {
+        media.removeEventListener('loadedmetadata', onLoaded);
+        media.removeEventListener('error', onFailed);
+        detachSourceListenersRef.current = null;
+      };
+
+      function onLoaded() {
+        detach();
+        media.currentTime = resumeAt;
+        // Live intent, not the value captured when the swap started: the user may have
+        // pressed Stop while the new source was loading.
+        if (wantsPlaybackRef.current) startElement();
+      }
+
+      function onFailed() {
+        detach();
+        // Without this the transport would sit reporting playback against a source that
+        // will never fire `loadedmetadata`.
+        if (wantsPlaybackRef.current) stopRef.current();
+      }
+
+      media.addEventListener('loadedmetadata', onLoaded, { once: true });
+      media.addEventListener('error', onFailed, { once: true });
+      detachSourceListenersRef.current = detach;
+
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+    },
+    [startElement],
+  );
+
+  const render = useCallback(
+    (settings: RenderSettings) => {
+      const generation = renderGenerationRef.current + 1;
+      renderGenerationRef.current = generation;
+
       setIsRendering(true);
-      void renderSessionUrl({ beatHz, carrierHz, mode, noise, noiseLevel })
+      isRenderingRef.current = true;
+
+      void renderSessionUrl(settings)
         .then(url => {
           // A later settings change already superseded this render.
           if (renderGenerationRef.current !== generation) {
@@ -295,19 +360,34 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
           swapSource(url);
         })
         .catch(() => {
-          // A failed render would otherwise leave the transport reporting playback with
-          // nothing loaded, so a pending play is reset rather than left hanging.
-          if (renderGenerationRef.current === generation && pendingPlayRef.current) {
+          // Nothing was produced, so a session waiting on this render has to be released
+          // rather than left counting up in silence. Pressing Play again retries.
+          if (renderGenerationRef.current === generation && wantsPlaybackRef.current) {
             stopRef.current();
           }
         })
         .finally(() => {
-          if (renderGenerationRef.current === generation) setIsRendering(false);
+          if (renderGenerationRef.current !== generation) return;
+          setIsRendering(false);
+          isRenderingRef.current = false;
         });
-    }, RENDER_DEBOUNCE_MS);
+    },
+    [swapSource],
+  );
 
+  // `play` reaches the current render through a ref so it does not have to depend on
+  // settings that change on every slider move.
+  useEffect(() => {
+    renderNowRef.current = () => render({ beatHz, carrierHz, mode, noise, noiseLevel });
+  }, [beatHz, carrierHz, mode, noise, noiseLevel, render]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => render({ beatHz, carrierHz, mode, noise, noiseLevel }),
+      RENDER_DEBOUNCE_MS,
+    );
     return () => window.clearTimeout(timeout);
-  }, [beatHz, carrierHz, mode, noise, noiseLevel, swapSource]);
+  }, [beatHz, carrierHz, mode, noise, noiseLevel, render]);
 
   useEffect(() => clearTicker, [clearTicker]);
 
