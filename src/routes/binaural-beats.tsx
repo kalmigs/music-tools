@@ -14,11 +14,13 @@ import {
   CARRIER_MIN,
   DEFAULT_BEAT_HZ,
   DEFAULT_CARRIER_HZ,
+  DEFAULT_ENGINE,
   DEFAULT_MODE,
   DEFAULT_NOISE,
   DEFAULT_NOISE_LEVEL,
   DEFAULT_TIMER_MINUTES,
   DEFAULT_VOLUME,
+  ENGINES,
   MODES,
   NOISE_TYPES,
   PRESETS,
@@ -34,13 +36,18 @@ import { isTypingTarget } from '@/lib/keyboard-utils';
 import { cn } from '@/lib/utils';
 
 // Constants
-/** Half a hertz keeps the beat on the 30 s loop grid; see `snapToLoopGrid`. */
+/**
+ * Half a hertz keeps the beat on the 30 s loop grid, which the sleep engine needs so its
+ * rendered buffer crosses the loop seam without a phase jump; see `snapToLoopGrid`. The
+ * focus engine runs continuous oscillators and has no such constraint.
+ */
 const BEAT_STEP = 0.5;
 const CARRIER_STEP = 1;
 const VOLUME_STEP = 0.05;
 
 const MODE_LABELS = { binaural: 'Binaural', isochronic: 'Speaker' } as const;
 const NOISE_LABELS = { none: 'None', pink: 'Pink', brown: 'Brown' } as const;
+const ENGINE_LABELS = { focus: 'Focus', sleep: 'Sleep' } as const;
 
 // Helpers
 function formatClock(totalSeconds: number): string {
@@ -120,6 +127,7 @@ function BinauralBeatsPage() {
 
   const beat = search.beat ?? DEFAULT_BEAT_HZ;
   const carrier = search.carrier ?? DEFAULT_CARRIER_HZ;
+  const engine = search.engine ?? DEFAULT_ENGINE;
   const mode = search.mode ?? DEFAULT_MODE;
   const noise = search.noise ?? DEFAULT_NOISE;
   const noiseLevel = search.noiseLevel ?? DEFAULT_NOISE_LEVEL;
@@ -136,6 +144,7 @@ function BinauralBeatsPage() {
   const { elapsedSeconds, isPlaying, isRendering, toggle } = useBinauralBeats({
     beatHz: beat,
     carrierHz: carrier,
+    engine,
     mode,
     noise,
     noiseLevel,
@@ -329,6 +338,26 @@ function BinauralBeatsPage() {
             valueLabel={`${Math.round(noiseLevel * 100)}%`}
           />
         )}
+      </section>
+
+      <section className="space-y-2 rounded-3xl border border-border/80 bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm text-muted-foreground">Playback</span>
+          <Segmented
+            options={ENGINES}
+            labels={ENGINE_LABELS}
+            value={engine}
+            onChange={next => updateSearch({ engine: next })}
+          />
+        </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {engine === 'focus'
+            ? 'Seamless, and silent once the screen locks: iOS suspends live audio on a locked phone. Use this while you are awake and on the device.'
+            : 'Keeps playing on a locked phone, at the cost of a brief tick each time the loop repeats. Use this to fall asleep to.'}
+        </p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Switching this stops playback; press play again.
+        </p>
       </section>
 
       <p className="px-1 text-xs leading-relaxed text-muted-foreground">

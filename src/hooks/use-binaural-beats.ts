@@ -2,15 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   type RenderSettings,
+  type SessionGraphHandle,
+  LOOP_SECONDS,
   carryLoopPosition,
+  connectSessionGraph,
   renderSessionUrl,
 } from '@/lib/binaural-beats-render';
 import {
   type BinauralMode,
   type NoiseType,
+  type PlaybackEngine,
   type TimerMinutes,
   DEFAULT_BEAT_HZ,
   DEFAULT_CARRIER_HZ,
+  DEFAULT_ENGINE,
   DEFAULT_MODE,
   DEFAULT_NOISE,
   DEFAULT_NOISE_LEVEL,
@@ -24,6 +29,7 @@ import {
 interface UseBinauralBeatsOptions {
   beatHz?: number;
   carrierHz?: number;
+  engine?: PlaybackEngine;
   mode?: BinauralMode;
   noise?: NoiseType;
   noiseLevel?: number;
@@ -35,7 +41,7 @@ interface UseBinauralBeatsOptions {
 interface UseBinauralBeatsReturn {
   elapsedSeconds: number;
   isPlaying: boolean;
-  /** True while a settings change is being rendered into a new loop. */
+  /** True while a settings change is being rendered into a new loop. Sleep engine only. */
   isRendering: boolean;
   play: () => void;
   stop: () => void;
@@ -43,7 +49,7 @@ interface UseBinauralBeatsReturn {
 }
 
 // Constants
-/** A slider drag settles before it costs a re-render. */
+/** A slider drag settles before it costs a re-render. Sleep engine only. */
 const RENDER_DEBOUNCE_MS = 300;
 
 /**
@@ -100,19 +106,26 @@ function clearMediaSession(): void {
 
 // Main hook
 /**
- * Binaural beats playback. Unlike the other tools in this app there is no live
- * `AudioContext` here: iOS suspends one within ~100 ms of the screen locking and never
- * advances it again until unlock, which the 2026-09-08 spike measured across a 124 s lock.
- * A media element playing a pre-rendered loop survives lock instead, verified at 222 s.
+ * Binaural beats playback, on one of two engines that are not interchangeable. Both were
+ * measured on-device rather than assumed; see `ENGINES` for the numbers.
  *
- * So settings are rendered offline into a seamless loop, handed to an `<audio>` element,
- * and re-rendered when they change. Both transport fades ride on the element's volume,
- * since a fade baked into a looping buffer would repeat on every pass.
+ * - `focus` runs a live `AudioContext`. `AudioBufferSourceNode.loop` is sample-accurate, so
+ *   there is no loop artifact and parameter changes retune the running graph in place with
+ *   no re-render. iOS suspends a live context on screen lock, so this engine is silent on a
+ *   locked phone.
+ * - `sleep` renders the settings offline into a seamless loop and plays it through an
+ *   `<audio>` element, the only thing iOS keeps running while locked. WebKit drops ~123 ms
+ *   of audio at the element's loop wrap, which is audible; that is the price of lock
+ *   survival and the reason the choice is exposed to the user rather than picked here.
+ *
+ * Both fades ride on a gain the engine owns, never inside the buffer: a fade baked into a
+ * looping buffer would repeat on every pass.
  */
 export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBinauralBeatsReturn {
   const {
     beatHz = DEFAULT_BEAT_HZ,
     carrierHz = DEFAULT_CARRIER_HZ,
+    engine = DEFAULT_ENGINE,
     mode = DEFAULT_MODE,
     noise = DEFAULT_NOISE,
     noiseLevel = DEFAULT_NOISE_LEVEL,
@@ -132,6 +145,18 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   const renderGenerationRef = useRef(0);
   const isRenderingRef = useRef(false);
 
+  // Focus engine. The context is created on the first Play so it is unlocked by a gesture,
+  // then kept for the life of the hook: re-creating one outside a gesture is refused.
+  const contextRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const graphRef = useRef<SessionGraphHandle | null>(null);
+
+  /** Read inside callbacks that must not re-create themselves on every engine change. */
+  const engineRef = useRef<PlaybackEngine>(engine);
+  useEffect(() => {
+    engineRef.current = engine;
+  }, [engine]);
+
   /**
    * Live transport intent, as opposed to whether the element happens to be playing right
    * now. A source swap starts loading before it can start playing, and the user can press
@@ -145,6 +170,9 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   /** Renders the settings as of the latest commit; see the effect that assigns it. */
   const renderNowRef = useRef<() => void>(() => undefined);
 
+  /** Builds the live graph from the settings as of the latest commit. */
+  const buildGraphRef = useRef<() => void>(() => undefined);
+
   /**
    * Set when Play is pressed before a source exists. The timer and the fade-in are then
    * rebased to the moment sound actually starts, since a cold start spends seconds
@@ -153,9 +181,9 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
    */
   const deferredStartRef = useRef(false);
 
-  // The volume slider and the transport fades both want the element's single volume
-  // scalar, so they are held apart and multiplied on every write. A drag mid-fade then
-  // cannot clobber the ramp, and the ramp cannot clobber the drag.
+  // The volume slider and the transport fades both want one gain scalar, so they are held
+  // apart and multiplied on every write. A drag mid-fade then cannot clobber the ramp, and
+  // the ramp cannot clobber the drag.
   const userVolumeRef = useRef(volume);
   const transportGainRef = useRef(0);
 
@@ -183,7 +211,9 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     if (rebased !== null) startedAtRef.current = Date.now() - rebased * 1000;
   }, [timerMinutes]);
 
-  // Declared before the render effect so the element exists by the time it runs.
+  // Declared before the render effect so the element exists by the time it runs. Created
+  // for both engines: it is inert under focus, and creating it lazily would mean creating
+  // it outside a user gesture, which iOS refuses to let play.
   useEffect(() => {
     const element = new Audio();
     element.loop = true;
@@ -210,11 +240,30 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     };
   }, []);
 
+  // Tear the live graph down on unmount. Separate from the element effect so neither
+  // engine's cleanup depends on the other's.
+  useEffect(
+    () => () => {
+      graphRef.current?.dispose();
+      graphRef.current = null;
+      void contextRef.current?.close();
+      contextRef.current = null;
+      masterGainRef.current = null;
+    },
+    [],
+  );
+
   const applyVolume = useCallback(() => {
+    const level = Math.min(1, Math.max(0, userVolumeRef.current * transportGainRef.current));
+
+    if (engineRef.current === 'focus') {
+      const gain = masterGainRef.current;
+      if (gain) gain.gain.value = level;
+      return;
+    }
+
     const element = elementRef.current;
-    if (!element) return;
-    const level = userVolumeRef.current * transportGainRef.current;
-    element.volume = Math.min(1, Math.max(0, level));
+    if (element) element.volume = level;
   }, []);
 
   useEffect(() => {
@@ -236,12 +285,15 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     transportGainRef.current = 0;
     detachSourceListenersRef.current?.();
 
+    graphRef.current?.dispose();
+    graphRef.current = null;
+
     const element = elementRef.current;
     if (element) {
       element.pause();
       element.currentTime = 0;
-      applyVolume();
     }
+    applyVolume();
 
     setIsPlaying(false);
     setElapsedSeconds(0);
@@ -291,16 +343,40 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
   }, [applyVolume, clearTicker, stop]);
 
   const play = useCallback(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
     startedAtRef.current = Date.now();
     transportGainRef.current = 0;
     wantsPlaybackRef.current = true;
-    applyVolume();
     setElapsedSeconds(0);
     setIsPlaying(true);
     startTicker();
+
+    if (engineRef.current === 'focus') {
+      // Created here rather than on mount so the context is unlocked by this tap.
+      let context = contextRef.current;
+      if (!context) {
+        context = new AudioContext();
+        contextRef.current = context;
+
+        const gain = context.createGain();
+        gain.gain.value = 0;
+        gain.connect(context.destination);
+        masterGainRef.current = gain;
+      }
+
+      applyVolume();
+      void context.resume();
+      buildGraphRef.current();
+      installMediaSession(
+        () => playRef.current(),
+        () => stopRef.current(),
+      );
+      return;
+    }
+
+    const element = elementRef.current;
+    if (!element) return;
+
+    applyVolume();
 
     if (element.src) {
       deferredStartRef.current = false;
@@ -422,19 +498,70 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     [swapSource],
   );
 
-  // `play` reaches the current render through a ref so it does not have to depend on
-  // settings that change on every slider move.
-  useEffect(() => {
-    renderNowRef.current = () => render({ beatHz, carrierHz, mode, noise, noiseLevel });
-  }, [beatHz, carrierHz, mode, noise, noiseLevel, render]);
+  /**
+   * Rebuild the live graph. Cheap enough to call on a structural change, but not on a
+   * slider drag: carrier, beat and noise level retune the running graph instead.
+   */
+  const buildGraph = useCallback((settings: RenderSettings) => {
+    const context = contextRef.current;
+    const gain = masterGainRef.current;
+    if (!context || !gain) return;
 
+    graphRef.current?.dispose();
+    graphRef.current = connectSessionGraph(context, settings, gain, {
+      noiseSeconds: LOOP_SECONDS,
+      // Live oscillators run continuously, so there is no seam to align them to.
+      snapSeconds: null,
+    });
+  }, []);
+
+  // `play` reaches the current settings through refs so it does not have to depend on
+  // values that change on every slider move.
   useEffect(() => {
+    const settings: RenderSettings = { beatHz, carrierHz, mode, noise, noiseLevel };
+    renderNowRef.current = () => render(settings);
+    buildGraphRef.current = () => buildGraph(settings);
+  }, [beatHz, buildGraph, carrierHz, mode, noise, noiseLevel, render]);
+
+  // Sleep engine: a settings change costs a re-render and a source swap.
+  useEffect(() => {
+    if (engine !== 'sleep') return;
+
     const timeout = window.setTimeout(
       () => render({ beatHz, carrierHz, mode, noise, noiseLevel }),
       RENDER_DEBOUNCE_MS,
     );
     return () => window.clearTimeout(timeout);
-  }, [beatHz, carrierHz, mode, noise, noiseLevel, render]);
+  }, [beatHz, carrierHz, engine, mode, noise, noiseLevel, render]);
+
+  // Focus engine: retune the running graph in place. No debounce and no re-render, so a
+  // drag is continuous rather than a series of restarts.
+  useEffect(() => {
+    if (engine !== 'focus') return;
+    graphRef.current?.setFrequencies(carrierHz, beatHz);
+  }, [beatHz, carrierHz, engine]);
+
+  useEffect(() => {
+    if (engine !== 'focus') return;
+    graphRef.current?.setNoiseLevel(noiseLevel);
+  }, [engine, noiseLevel]);
+
+  // Focus engine: mode and noise type change the shape of the graph, so they need a
+  // rebuild rather than a retune.
+  useEffect(() => {
+    if (engine !== 'focus' || !wantsPlaybackRef.current) return;
+    buildGraphRef.current();
+  }, [engine, mode, noise]);
+
+  // Switching engine mid-session stops the sound rather than handing playback over: the
+  // element path needs its own user gesture to start on iOS, so a silent hand-off would
+  // leave the transport reporting playback over silence.
+  const previousEngineRef = useRef(engine);
+  useEffect(() => {
+    if (previousEngineRef.current === engine) return;
+    previousEngineRef.current = engine;
+    if (wantsPlaybackRef.current) stopRef.current();
+  }, [engine]);
 
   useEffect(() => clearTicker, [clearTicker]);
 

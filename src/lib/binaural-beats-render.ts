@@ -156,20 +156,68 @@ export function generateLoopableNoise(
   return out;
 }
 
+// Shared graph
+/**
+ * Handles onto a built graph so a live engine can retune it in place rather than tearing it
+ * down and rebuilding, which would restart the sound on every slider move. The offline
+ * renderer builds the same graph and simply ignores the handle.
+ */
+export interface SessionGraphHandle {
+  /** Stop and disconnect every source the graph started. */
+  dispose(): void;
+  /** Retune carrier and beat without rebuilding, so a drag stays click-free. */
+  setFrequencies(carrierHz: number, beatHz: number): void;
+  /** Set the bed level without regenerating its buffer. */
+  setNoiseLevel(level: number): void;
+}
+
+interface GraphOptions {
+  /** Seconds of noise generated before the bed loops. The bed always loops. */
+  noiseSeconds: number;
+  /**
+   * Loop length to snap tone frequencies onto, or null to leave them exact. Snapping only
+   * matters when the graph is rendered into a buffer that will loop; live oscillators run
+   * continuously and never cross a seam.
+   */
+  snapSeconds: number | null;
+}
+
+interface ToneSection {
+  setFrequencies(carrierHz: number, beatHz: number): void;
+  sources: AudioScheduledSourceNode[];
+}
+
+interface NoiseSection {
+  setNoiseLevel(level: number): void;
+  sources: AudioScheduledSourceNode[];
+}
+
+/**
+ * Apply the loop grid, or don't. This is the whole difference between the engines at the
+ * graph level: the sleep engine renders a buffer that will loop, so its tones must complete
+ * whole cycles inside it, while the focus engine's oscillators run continuously and are
+ * left at exactly the requested frequency.
+ */
+export function gridSnap(hz: number, snapSeconds: number | null): number {
+  return snapSeconds === null ? hz : snapToLoopGrid(hz, snapSeconds);
+}
+
 /** Left ear gets the carrier, right ear the carrier plus the beat, hard-panned. */
 function connectBinauralTones(
-  context: OfflineAudioContext,
+  context: BaseAudioContext,
   settings: RenderSettings,
   destination: AudioNode,
-  loopSeconds: number,
-): void {
-  const carrierHz = snapToLoopGrid(settings.carrierHz, loopSeconds);
-  const beatHz = snapToLoopGrid(settings.beatHz, loopSeconds);
-  const ears = getEarFrequencies(carrierHz, beatHz);
+  snapSeconds: number | null,
+): ToneSection {
+  const ears = getEarFrequencies(
+    gridSnap(settings.carrierHz, snapSeconds),
+    gridSnap(settings.beatHz, snapSeconds),
+  );
 
   const merger = context.createChannelMerger(2);
   merger.connect(destination);
 
+  const oscillators: OscillatorNode[] = [];
   [ears.left, ears.right].forEach((frequency, channel) => {
     const oscillator = context.createOscillator();
     oscillator.type = 'sine';
@@ -181,7 +229,20 @@ function connectBinauralTones(
     oscillator.connect(gain);
     gain.connect(merger, 0, channel);
     oscillator.start();
+    oscillators.push(oscillator);
   });
+
+  return {
+    setFrequencies(carrierHz, beatHz) {
+      const next = getEarFrequencies(
+        gridSnap(carrierHz, snapSeconds),
+        gridSnap(beatHz, snapSeconds),
+      );
+      oscillators[0].frequency.value = next.left;
+      oscillators[1].frequency.value = next.right;
+    },
+    sources: oscillators,
+  };
 }
 
 /**
@@ -190,13 +251,13 @@ function connectBinauralTones(
  * audibly over a speaker.
  */
 function connectIsochronicTone(
-  context: OfflineAudioContext,
+  context: BaseAudioContext,
   settings: RenderSettings,
   destination: AudioNode,
-  loopSeconds: number,
-): void {
-  const carrierHz = snapToLoopGrid(settings.carrierHz, loopSeconds);
-  const beatHz = snapToLoopGrid(settings.beatHz, loopSeconds);
+  snapSeconds: number | null,
+): ToneSection {
+  const carrierHz = gridSnap(settings.carrierHz, snapSeconds);
+  const beatHz = gridSnap(settings.beatHz, snapSeconds);
 
   const oscillator = context.createOscillator();
   oscillator.type = 'sine';
@@ -231,6 +292,14 @@ function connectIsochronicTone(
   oscillator.start();
   lfo.start();
   offset.start();
+
+  return {
+    setFrequencies(carrierHz, beatHz) {
+      oscillator.frequency.value = gridSnap(carrierHz, snapSeconds);
+      lfo.frequency.value = gridSnap(beatHz, snapSeconds);
+    },
+    sources: [oscillator, lfo, offset],
+  };
 }
 
 /**
@@ -239,15 +308,19 @@ function connectIsochronicTone(
  * bed crosses the loop seam continuously rather than dipping to silence there.
  */
 function connectNoise(
-  context: OfflineAudioContext,
+  context: BaseAudioContext,
   settings: RenderSettings,
   destination: AudioNode,
-  loopSeconds: number,
-): void {
-  if (settings.noise === 'none' || settings.noiseLevel <= 0) return;
+  noiseSeconds: number,
+): NoiseSection {
+  // Turning the bed on later needs a buffer that does not exist yet, so the caller rebuilds
+  // the graph on a noise *type* change; only the level is adjustable in place.
+  if (settings.noise === 'none' || settings.noiseLevel <= 0) {
+    return { setNoiseLevel: () => undefined, sources: [] };
+  }
 
   const generate = settings.noise === 'pink' ? generatePinkNoiseSamples : generateBrownNoiseSamples;
-  const length = Math.round(loopSeconds * context.sampleRate);
+  const length = Math.round(noiseSeconds * context.sampleRate);
   const buffer = context.createBuffer(2, length, context.sampleRate);
   // `set` rather than `copyToChannel`: the generators return a plain Float32Array, whose
   // buffer type does not narrow to the `Float32Array<ArrayBuffer>` copyToChannel wants.
@@ -256,6 +329,9 @@ function connectNoise(
 
   const source = context.createBufferSource();
   source.buffer = buffer;
+  // Required live, where the bed would otherwise play once and stop. Harmless offline: the
+  // render is exactly one buffer long, so it never reaches the wrap.
+  source.loop = true;
 
   const gain = context.createGain();
   gain.gain.value = settings.noiseLevel * NOISE_MAX_GAIN;
@@ -263,13 +339,54 @@ function connectNoise(
   source.connect(gain);
   gain.connect(destination);
   source.start();
+
+  return {
+    setNoiseLevel(level) {
+      gain.gain.value = level * NOISE_MAX_GAIN;
+    },
+    sources: [source],
+  };
 }
 
 /**
- * Render one seamless loop of the current settings. Everything the tool plays comes from
- * here: there is no live `AudioContext`, because iOS interrupts one the moment the screen
- * locks (spike, 2026-09-08). Fades are deliberately absent from the buffer, since a
- * looping buffer would repeat them every pass; they ride on the element's volume instead.
+ * Build the session graph onto any context. Both engines share this: the sleep engine
+ * renders it offline into a looping buffer, the focus engine runs it live. Fades are
+ * deliberately absent - offline they would repeat on every loop pass, and live they belong
+ * on the master gain - so both engines apply the transport envelope downstream.
+ */
+export function connectSessionGraph(
+  context: BaseAudioContext,
+  settings: RenderSettings,
+  destination: AudioNode,
+  options: GraphOptions,
+): SessionGraphHandle {
+  const tones =
+    settings.mode === 'binaural'
+      ? connectBinauralTones(context, settings, destination, options.snapSeconds)
+      : connectIsochronicTone(context, settings, destination, options.snapSeconds);
+
+  const noise = connectNoise(context, settings, destination, options.noiseSeconds);
+
+  return {
+    dispose() {
+      for (const source of [...tones.sources, ...noise.sources]) {
+        try {
+          source.stop();
+        } catch {
+          // Already stopped, or never started; disconnecting is what matters.
+        }
+        source.disconnect();
+      }
+    },
+    setFrequencies: tones.setFrequencies,
+    setNoiseLevel: noise.setNoiseLevel,
+  };
+}
+
+/**
+ * Render one seamless loop of the current settings, for the sleep engine. Tone frequencies
+ * are snapped onto the loop grid here because this buffer *will* loop; the focus engine
+ * passes `snapSeconds: null` since its oscillators run continuously.
  */
 export async function renderSessionBuffer(
   settings: RenderSettings,
@@ -278,13 +395,10 @@ export async function renderSessionBuffer(
   const frames = Math.round(loopSeconds * RENDER_SAMPLE_RATE);
   const context = new OfflineAudioContext(2, frames, RENDER_SAMPLE_RATE);
 
-  if (settings.mode === 'binaural') {
-    connectBinauralTones(context, settings, context.destination, loopSeconds);
-  } else {
-    connectIsochronicTone(context, settings, context.destination, loopSeconds);
-  }
-
-  connectNoise(context, settings, context.destination, loopSeconds);
+  connectSessionGraph(context, settings, context.destination, {
+    noiseSeconds: loopSeconds,
+    snapSeconds: loopSeconds,
+  });
 
   return context.startRendering();
 }

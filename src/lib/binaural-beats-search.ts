@@ -5,6 +5,7 @@ import {
   BEAT_MIN,
   CARRIER_MAX,
   CARRIER_MIN,
+  ENGINES,
   MODES,
   NOISE_TYPES,
   TIMER_MINUTES_OPTIONS,
@@ -17,6 +18,7 @@ import {
 export const searchSchema = z.object({
   beat: z.number().min(BEAT_MIN).max(BEAT_MAX).optional().catch(undefined),
   carrier: z.number().min(CARRIER_MIN).max(CARRIER_MAX).optional().catch(undefined),
+  engine: z.enum(ENGINES).optional().catch(undefined),
   mode: z.enum(MODES).optional().catch(undefined),
   noise: z.enum(NOISE_TYPES).optional().catch(undefined),
   noiseLevel: z.number().min(0).max(1).optional().catch(undefined),

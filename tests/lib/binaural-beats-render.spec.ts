@@ -6,6 +6,7 @@ import {
   carryLoopPosition,
   encodeWavBytes,
   generateLoopableNoise,
+  gridSnap,
   snapToLoopGrid,
 } from '@/lib/binaural-beats-render';
 import {
@@ -64,6 +65,21 @@ describe('snapToLoopGrid', () => {
   it('uses a coarser grid for a shorter loop', () => {
     // At 2 s the grid is 0.5 Hz, so 10.3 cannot survive.
     expect(snapToLoopGrid(10.3, 2)).toBe(10.5);
+  });
+});
+
+describe('gridSnap', () => {
+  // The null branch is the whole difference between the engines at the graph level: the
+  // focus engine's oscillators run continuously, so nothing quantizes their frequency.
+  it('leaves frequencies exact when there is no grid', () => {
+    expect(gridSnap(10.33, null)).toBe(10.33);
+    expect(gridSnap(200.7, null)).toBe(200.7);
+    expect(gridSnap(BEAT_MIN, null)).toBe(BEAT_MIN);
+  });
+
+  it('applies the loop grid when given one, matching what the sleep engine renders', () => {
+    expect(gridSnap(10.33, 30)).toBe(snapToLoopGrid(10.33, 30));
+    expect(gridSnap(10.3, 2)).toBe(10.5);
   });
 });
 

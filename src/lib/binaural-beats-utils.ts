@@ -38,6 +38,21 @@ export interface TransportEnvelope {
 export const MODES = ['binaural', 'isochronic'] as const;
 export const NOISE_TYPES = ['none', 'pink', 'brown'] as const;
 
+/**
+ * Which playback engine drives the sound. The two are not interchangeable and neither one
+ * can do both jobs, so the choice is the user's rather than something derived:
+ *
+ * - `focus` runs a live `AudioContext`. `AudioBufferSourceNode.loop` is sample-accurate, so
+ *   there is no loop artifact at all - but iOS suspends a live context within ~100 ms of
+ *   the screen locking (spike, 2026-09-08) and never advances it again until unlock.
+ * - `sleep` plays a pre-rendered loop through an `<audio>` element, which is the only thing
+ *   that keeps running on a locked phone (verified at 222 s). The cost is a brief tick
+ *   every loop, because WebKit drops audio at the wrap: ~123 ms on `element.loop`, ~17 ms
+ *   once the element seeks back before reaching end-of-file. Measured on-device 2026-09-12.
+ */
+export const ENGINES = ['focus', 'sleep'] as const;
+export type PlaybackEngine = (typeof ENGINES)[number];
+
 export const BEAT_MIN = 0.5;
 export const BEAT_MAX = 40;
 export const CARRIER_MIN = 100;
@@ -69,6 +84,8 @@ export const BAND_LABELS: Record<Band, string> = {
 };
 
 export const DEFAULT_MODE: BinauralMode = 'binaural';
+/** Gapless by default; sleep is opt-in because it trades a faint tick for lock survival. */
+export const DEFAULT_ENGINE: PlaybackEngine = 'focus';
 export const DEFAULT_BEAT_HZ = 10;
 export const DEFAULT_CARRIER_HZ = 200;
 export const DEFAULT_NOISE: NoiseType = 'none';
