@@ -222,7 +222,7 @@ describe('encodeWavBytes', () => {
  * what got built, and whether a setter reaches a real node - without asserting on sound.
  */
 function stubContext(sampleRate = 44100) {
-  const gains: { gain: { value: number } }[] = [];
+  const gains: { disconnected: boolean; gain: { value: number } }[] = [];
   const bufferSources: unknown[] = [];
   const wiring = { connect: () => undefined, disconnect: () => undefined };
 
@@ -230,7 +230,15 @@ function stubContext(sampleRate = 44100) {
     sampleRate,
     createChannelMerger: () => ({ ...wiring }),
     createGain: () => {
-      const node = { ...wiring, gain: { value: 0 } };
+      const node = {
+        connect: () => undefined,
+        disconnect: () => {
+          node.disconnected = true;
+        },
+        disconnected: false,
+        // A real createGain opens at unity; the builders overwrite it where they care.
+        gain: { value: 1 },
+      };
       gains.push(node);
       return node;
     },
@@ -269,6 +277,8 @@ function stubContext(sampleRate = 44100) {
     bufferSources,
     context: context as unknown as BaseAudioContext,
     destination: { ...wiring } as unknown as AudioNode,
+    // The group gain is built first, before either section.
+    groupGain: () => gains[0],
     // The noise gain is the last one built: tones create theirs first.
     noiseGain: () => gains[gains.length - 1],
   };
@@ -317,6 +327,18 @@ describe('connectSessionGraph', () => {
 
     expect(bufferSources).toHaveLength(0);
     expect(() => graph.setNoiseLevel(0.6)).not.toThrow();
+  });
+
+  it('detaches the whole graph on dispose, not just the sources', () => {
+    // Stopping the sources left the mergers and section gains attached to the destination for
+    // the life of the context, and the focus engine rebuilds on every mode or noise change.
+    const { context, destination, groupGain } = stubContext();
+
+    const graph = connectSessionGraph(context, BASE_SETTINGS, destination, options);
+    expect(groupGain().disconnected).toBe(false);
+
+    graph.dispose();
+    expect(groupGain().disconnected).toBe(true);
   });
 
   it('opens the bed at the level it was given', () => {

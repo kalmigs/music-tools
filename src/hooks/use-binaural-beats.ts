@@ -320,9 +320,17 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
           () => stopRef.current(),
         ),
       )
-      // A rejection here is usually iOS refusing a play that is no longer tied to a tap.
-      // Reset rather than swallow it, or the transport reports playback over silence.
-      .catch(() => stopRef.current());
+      .catch((error: unknown) => {
+        // `play()` rejects with AbortError whenever a pending play is interrupted by
+        // `pause()` or `load()` - both of which this hook calls, on Stop and on a source
+        // swap. That rejection belongs to a session the user has already left, so acting on
+        // it would tear down the one they just started.
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+
+        // Anything else is usually iOS refusing a play that is no longer tied to a tap.
+        // Reset rather than swallow it, or the transport reports playback over silence.
+        stopRef.current();
+      });
   }, []);
 
   const startTicker = useCallback(() => {
@@ -558,22 +566,48 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
     graphRef.current?.setNoiseLevel(noiseLevel);
   }, [engine, noiseLevel]);
 
+  // Declared above both effects that read it: this one runs first and needs the previous
+  // value, while the engine-switch effect below is what advances it.
+  const previousEngineRef = useRef(engine);
+
   // Focus engine: mode and noise type change the shape of the graph, so they need a
   // rebuild rather than a retune.
   useEffect(() => {
     if (engine !== 'focus' || !wantsPlaybackRef.current) return;
+
+    // Not on the switch itself. `wantsPlaybackRef` is still set here - the stop lives in the
+    // effect below, which has not run yet - so a sleep -> focus switch would build a whole
+    // graph, generating the noise bed synchronously on the main thread, only for that effect
+    // to dispose it in the same flush. Play() builds the graph the user actually hears.
+    if (previousEngineRef.current !== engine) return;
+
     buildGraphRef.current();
   }, [engine, mode, noise]);
 
   // Switching engine mid-session stops the sound rather than handing playback over: the
   // element path needs its own user gesture to start on iOS, so a silent hand-off would
   // leave the transport reporting playback over silence.
-  const previousEngineRef = useRef(engine);
   useEffect(() => {
     if (previousEngineRef.current === engine) return;
     previousEngineRef.current = engine;
     if (wantsPlaybackRef.current) stopRef.current();
   }, [engine]);
+
+  // Backgrounding the tab or app suspends the AudioContext, and it does not come back on its
+  // own. Without this the ticker keeps advancing, the fade keeps ramping, and a timed session
+  // "completes" in silence with no recovery short of Stop and Play. The screen-lock case is a
+  // different thing and stays accepted: focus mode is not meant to survive a lock, which is
+  // what the sleep engine exists for.
+  useEffect(() => {
+    function resumeIfPlaying() {
+      if (document.visibilityState !== 'visible') return;
+      if (engineRef.current !== 'focus' || !wantsPlaybackRef.current) return;
+      void contextRef.current?.resume();
+    }
+
+    document.addEventListener('visibilitychange', resumeIfPlaying);
+    return () => document.removeEventListener('visibilitychange', resumeIfPlaying);
+  }, []);
 
   useEffect(() => clearTicker, [clearTicker]);
 

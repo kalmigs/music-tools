@@ -366,12 +366,19 @@ export function connectSessionGraph(
   destination: AudioNode,
   options: GraphOptions,
 ): SessionGraphHandle {
+  // Everything this build creates hangs off one group gain, so `dispose` detaches the whole
+  // subtree with a single disconnect. Stopping the sources alone left the mergers and
+  // per-section gains attached to the caller's destination for the life of the context - and
+  // the focus engine rebuilds on every mode or noise change, so they accumulated.
+  const group = context.createGain();
+  group.connect(destination);
+
   const tones =
     settings.mode === 'binaural'
-      ? connectBinauralTones(context, settings, destination, options.snapSeconds)
-      : connectIsochronicTone(context, settings, destination, options.snapSeconds);
+      ? connectBinauralTones(context, settings, group, options.snapSeconds)
+      : connectIsochronicTone(context, settings, group, options.snapSeconds);
 
-  const noise = connectNoise(context, settings, destination, options.noiseSeconds);
+  const noise = connectNoise(context, settings, group, options.noiseSeconds);
 
   return {
     dispose() {
@@ -383,6 +390,7 @@ export function connectSessionGraph(
         }
         source.disconnect();
       }
+      group.disconnect();
     },
     setFrequencies: tones.setFrequencies,
     setNoiseLevel: noise.setNoiseLevel,
