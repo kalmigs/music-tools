@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `tmp/` is gitignored scratch space, so CI never lints it. Ignoring it here
+  // keeps a local `pnpm lint` faithful to the CI gate.
+  globalIgnores(['dist', 'tmp']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
