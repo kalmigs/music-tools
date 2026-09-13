@@ -2,6 +2,8 @@
 
 A collection of browser-based music utilities.
 
+**[Open the app →](https://kalmigs.github.io/music-tools/)** — no install, no account; everything runs in the browser.
+
 ## Features
 
 - **Metronome** - Practice with adjustable tempo, time signatures, tap tempo, speed trainer, and timer
