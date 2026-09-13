@@ -315,7 +315,13 @@ function connectNoise(
 ): NoiseSection {
   // Turning the bed on later needs a buffer that does not exist yet, so the caller rebuilds
   // the graph on a noise *type* change; only the level is adjustable in place.
-  if (settings.noise === 'none' || settings.noiseLevel <= 0) {
+  //
+  // A level of 0 is deliberately NOT short-circuited. It is a reachable starting state - the
+  // slider's min is 0, and `?noise=pink&noiseLevel=0` loads straight into it - and returning
+  // the no-op handle here would bake it in for the life of the graph, so raising the level
+  // later would do nothing until the noise type changed. Building the source at gain 0 costs
+  // one buffer generation and keeps the setter live.
+  if (settings.noise === 'none') {
     return { setNoiseLevel: () => undefined, sources: [] };
   }
 

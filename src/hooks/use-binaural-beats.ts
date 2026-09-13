@@ -440,6 +440,11 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
         // pressed Stop while the new source was loading.
         if (!wantsPlaybackRef.current) return;
 
+        // The user may also have switched to focus while this source was loading, and
+        // started a live session. Without this the element would play the stale sleep loop
+        // on top of the running graph, and nothing short of Stop would silence it.
+        if (engineRef.current !== 'sleep') return;
+
         if (deferredStartRef.current) {
           deferredStartRef.current = false;
           startedAtRef.current = Date.now();
@@ -452,8 +457,9 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
       function onFailed() {
         detach();
         // Without this the transport would sit reporting playback against a source that
-        // will never fire `loadedmetadata`.
-        if (wantsPlaybackRef.current) stopRef.current();
+        // will never fire `loadedmetadata`. Scoped to the sleep engine: a source that fails
+        // after the user moved to focus must not tear down the live session they are hearing.
+        if (wantsPlaybackRef.current && engineRef.current === 'sleep') stopRef.current();
       }
 
       media.addEventListener('loadedmetadata', onLoaded, { once: true });
@@ -484,8 +490,14 @@ export function useBinauralBeats(options: UseBinauralBeatsOptions = {}): UseBina
         })
         .catch(() => {
           // Nothing was produced, so a session waiting on this render has to be released
-          // rather than left counting up in silence. Pressing Play again retries.
-          if (renderGenerationRef.current === generation && wantsPlaybackRef.current) {
+          // rather than left counting up in silence. Pressing Play again retries. Scoped to
+          // the sleep engine for the same reason as `onFailed`: this render belongs to a
+          // session the user may have already left.
+          if (
+            renderGenerationRef.current === generation &&
+            wantsPlaybackRef.current &&
+            engineRef.current === 'sleep'
+          ) {
             stopRef.current();
           }
         })

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type PcmSource,
+  type RenderSettings,
   LOOP_SECONDS,
   carryLoopPosition,
+  connectSessionGraph,
   encodeWavBytes,
   generateLoopableNoise,
   gridSnap,
@@ -211,5 +213,117 @@ describe('encodeWavBytes', () => {
     const view = new DataView(encodeWavBytes(stubBuffer([new Float32Array(4)])));
 
     for (let i = 0; i < 4; i += 1) expect(view.getInt16(44 + i * 2, true)).toBe(0);
+  });
+});
+
+/**
+ * The suite runs in the node env, which has no Web Audio, so the graph builder is exercised
+ * against a stub that records the gain nodes it hands out. Enough to pin wiring decisions -
+ * what got built, and whether a setter reaches a real node - without asserting on sound.
+ */
+function stubContext(sampleRate = 44100) {
+  const gains: { gain: { value: number } }[] = [];
+  const bufferSources: unknown[] = [];
+  const wiring = { connect: () => undefined, disconnect: () => undefined };
+
+  const context = {
+    sampleRate,
+    createChannelMerger: () => ({ ...wiring }),
+    createGain: () => {
+      const node = { ...wiring, gain: { value: 0 } };
+      gains.push(node);
+      return node;
+    },
+    createOscillator: () => ({
+      ...wiring,
+      frequency: { value: 0 },
+      start: () => undefined,
+      stop: () => undefined,
+      type: 'sine',
+    }),
+    createConstantSource: () => ({
+      ...wiring,
+      offset: { value: 0 },
+      start: () => undefined,
+      stop: () => undefined,
+    }),
+    createBufferSource: () => {
+      const node = {
+        ...wiring,
+        buffer: null,
+        loop: false,
+        start: () => undefined,
+        stop: () => undefined,
+      };
+      bufferSources.push(node);
+      return node;
+    },
+    createBuffer: (_channels: number, length: number) => ({
+      getChannelData: () => new Float32Array(length),
+    }),
+  };
+
+  return {
+    // The handle exposes only dispose/setFrequencies/setNoiseLevel, so "was a bed built?"
+    // is asked of the context rather than the return value.
+    bufferSources,
+    context: context as unknown as BaseAudioContext,
+    destination: { ...wiring } as unknown as AudioNode,
+    // The noise gain is the last one built: tones create theirs first.
+    noiseGain: () => gains[gains.length - 1],
+  };
+}
+
+const BASE_SETTINGS: RenderSettings = {
+  beatHz: 6,
+  carrierHz: 200,
+  mode: 'binaural',
+  noise: 'pink',
+  noiseLevel: 0.5,
+};
+
+describe('connectSessionGraph', () => {
+  const options = { noiseSeconds: 0.05, snapSeconds: null };
+
+  it('builds the noise bed even when the level starts at 0, so it can be raised later', () => {
+    // The regression: short-circuiting a 0 level returned a no-op `setNoiseLevel`, which was
+    // baked in for the life of the graph. Reachable from the slider's min and from
+    // `?noise=pink&noiseLevel=0`.
+    const { bufferSources, context, destination, noiseGain } = stubContext();
+
+    const graph = connectSessionGraph(
+      context,
+      { ...BASE_SETTINGS, noiseLevel: 0 },
+      destination,
+      options,
+    );
+
+    expect(bufferSources).toHaveLength(1);
+    expect(noiseGain().gain.value).toBe(0);
+
+    graph.setNoiseLevel(0.6);
+    expect(noiseGain().gain.value).toBeGreaterThan(0);
+  });
+
+  it('leaves the bed unbuilt when the noise type is none', () => {
+    const { bufferSources, context, destination } = stubContext();
+
+    const graph = connectSessionGraph(
+      context,
+      { ...BASE_SETTINGS, noise: 'none' },
+      destination,
+      options,
+    );
+
+    expect(bufferSources).toHaveLength(0);
+    expect(() => graph.setNoiseLevel(0.6)).not.toThrow();
+  });
+
+  it('opens the bed at the level it was given', () => {
+    const { context, destination, noiseGain } = stubContext();
+
+    connectSessionGraph(context, BASE_SETTINGS, destination, options);
+
+    expect(noiseGain().gain.value).toBeGreaterThan(0);
   });
 });
